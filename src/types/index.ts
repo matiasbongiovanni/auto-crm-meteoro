@@ -109,3 +109,26 @@ export interface DashboardStats {
   conversionRate: number;
   hotLeads: number;
 }
+
+// WhatsApp / External Integration Types
+export interface SyncLeadResponse {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  company: string | null;
+  notes: string | null;
+  temperature: Temperature;
+  score: number;
+  source: LeadSource;
+  createdAt: Date;
+}
+
+export interface WhatsAppUpdate {
+  contactId: string;
+  temperature?: Temperature;
+  score?: number;
+  notes?: string;
+  activityType: ActivityType;
+  activityDescription: string;
+}

@@ -84,6 +84,8 @@ npm run mcp          # Iniciar servidor MCP (para Claude Desktop/Web)
 | `/api/webhook` | POST | Recibir leads de formularios externos (Typeform, Tally, etc.) |
 | `/api/export` | GET | Exportar contactos o deals como CSV (?type=contacts o deals) |
 | `/api/digest` | POST | Enviar resumen diario por email (requiere RESEND_API_KEY) |
+| `/api/crm/sync` | GET | Obtener leads para sincronización externa (filtro temperature, limit, offset). Requiere header `x-api-key` |
+| `/api/crm/update-from-whatsapp` | POST | Actualizar contacto y registrar actividad desde bot externo. Body: `{ contactId, temperature?, score?, notes?, activityType, activityDescription }`. Requiere header `x-api-key` |
 
 ## Configuracion del negocio
 
@@ -91,6 +93,26 @@ El archivo `crm-config.json` (raiz del proyecto) tiene la configuracion personal
 Se genera con `/setup` y se modifica con `/customize`.
 
 El archivo en `public/crm-config.json` es la copia por defecto (template).
+
+## Integración con Sistemas Externos (WhatsApp Bot, etc.)
+
+### Configurar API Key
+
+Para conectar bots externos (ej: WhatsApp AgentKit), primero generar una API key:
+
+1. Abrir CRM en http://localhost:3000
+2. Ir a Configuración > Integraciones
+3. Generar "API Key para WhatsApp Bot"
+4. Copiar la key y guardar en `.env` del bot
+
+La API key se almacena en `crmSettings` tabla con key `whatsapp_api_key`.
+
+### Endpoints de Sincronización
+
+Los bots externos usan estos endpoints con el header `x-api-key`:
+
+- `GET /api/crm/sync?temperature=cold&limit=10` — Obtener leads para prospección
+- `POST /api/crm/update-from-whatsapp` — Actualizar lead después de interacción
 
 ## Reglas de codigo
 
