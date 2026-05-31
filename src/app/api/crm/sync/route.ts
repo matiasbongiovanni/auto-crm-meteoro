@@ -1,67 +1,61 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
-import { contacts, crmSettings } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
-import type { SyncLeadResponse } from "@/types";
+import { authenticateApiKey, requireScope } from "@/lib/api-auth";
+import { getSupabaseServerClient } from "@/lib/server-supabase";
 
-// Verificar API key de integración
-function validateApiKey(request: NextRequest): boolean {
-  const apiKey = request.headers.get("x-api-key");
-  if (!apiKey) return false;
+export const runtime = "nodejs";
 
-  const stored = db
-    .select()
-    .from(crmSettings)
-    .where(eq(crmSettings.key, "whatsapp_api_key"))
-    .get();
-
-  return stored ? apiKey === stored.value : false;
-}
+const TEMPERATURA_MAP: Record<string, string> = {
+  cold: "frio",
+  warm: "tibio",
+  hot: "caliente",
+  frio: "frio",
+  tibio: "tibio",
+  caliente: "caliente",
+};
 
 export async function GET(request: NextRequest) {
-  // Validar autenticación
-  if (!validateApiKey(request)) {
-    return NextResponse.json(
-      { error: "API key inválida o faltante" },
-      { status: 401 }
-    );
-  }
+  const ctx = await authenticateApiKey(request);
+  const denied = requireScope(ctx, "read");
+  if (denied) return denied;
 
   const { searchParams } = new URL(request.url);
-  const temperature = searchParams.get("temperature") || "cold";
+  const temperatureParam = searchParams.get("temperature") || "cold";
+  const temperatura = TEMPERATURA_MAP[temperatureParam] || "frio";
   const limit = Math.min(parseInt(searchParams.get("limit") || "10"), 100);
   const offset = parseInt(searchParams.get("offset") || "0");
 
   try {
-    const results = db
-      .select()
-      .from(contacts)
-      .where(eq(contacts.temperature, temperature))
-      .orderBy(desc(contacts.createdAt))
-      .limit(limit)
-      .offset(offset)
-      .all();
+    const admin = getSupabaseServerClient();
+    const { data, error } = await admin
+      .from("crm_leads")
+      .select("*")
+      .eq("temperatura", temperatura)
+      .order("updated_at", { ascending: false })
+      .range(offset, offset + limit - 1);
 
-    const response: SyncLeadResponse[] = results.map((c) => ({
-      id: c.id,
-      name: c.name,
-      phone: c.phone,
-      email: c.email,
-      company: c.company,
-      notes: c.notes,
-      temperature: c.temperature as any,
-      score: c.score,
-      source: c.source as any,
-      createdAt: c.createdAt,
+    if (error) throw error;
+
+    const leads = (data || []).map((lead) => ({
+      id: lead.id,
+      nombre: lead.nombre,
+      telefono: lead.telefono,
+      empresa: lead.empresa,
+      temperatura: lead.temperatura,
+      estado: lead.estado,
+      origen: lead.origen,
+      notas: lead.notas,
+      fase: lead.fase,
+      fecha: lead.fecha,
+      ultimo_contacto: lead.ultimo_contacto,
+      intentos_contacto: lead.intentos_contacto,
+      canal_contacto: lead.canal_contacto,
     }));
 
-    return NextResponse.json(response);
+    return NextResponse.json(leads);
   } catch (error) {
     return NextResponse.json(
-      {
-        error: `Error al obtener leads: ${error instanceof Error ? error.message : "Unknown"}`,
-      },
-      { status: 500 }
+      { error: `Error al obtener leads: ${error instanceof Error ? error.message : "Unknown"}` },
+      { status: 500 },
     );
   }
 }

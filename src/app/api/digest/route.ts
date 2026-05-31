@@ -25,16 +25,14 @@ export async function POST() {
     );
   }
 
-  // Gather data
-  const allContacts = db.select().from(contacts).all();
-  const allDeals = db.select().from(deals).all();
-  const stages = db
+  const allContacts = await db.select().from(contacts);
+  const allDeals = await db.select().from(deals);
+  const stages = await db
     .select()
     .from(pipelineStages)
-    .orderBy(asc(pipelineStages.order))
-    .all();
+    .orderBy(asc(pipelineStages.order));
 
-  const pendingActivities = db
+  const pendingActivities = await db
     .select({
       id: activities.id,
       type: activities.type,
@@ -44,12 +42,11 @@ export async function POST() {
     })
     .from(activities)
     .leftJoin(contacts, eq(activities.contactId, contacts.id))
-    .where(isNull(activities.completedAt))
-    .all();
+    .where(isNull(activities.completedAt));
 
-  const now = Math.floor(Date.now() / 1000);
+  const now = Date.now();
   const overdue = pendingActivities.filter(
-    (a) => a.scheduledAt && (typeof a.scheduledAt === "number" ? a.scheduledAt : Math.floor(a.scheduledAt.getTime() / 1000)) < now
+    (a) => a.scheduledAt && a.scheduledAt.getTime() < now
   );
 
   const hotLeads = allContacts.filter((c) => c.temperature === "hot");
@@ -59,7 +56,6 @@ export async function POST() {
   });
   const pipelineValue = activeDeals.reduce((sum, d) => sum + d.value, 0);
 
-  // Build HTML email
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       <h1 style="color: #1e293b; font-size: 24px; margin-bottom: 4px;">Auto-CRM</h1>
@@ -99,13 +95,10 @@ export async function POST() {
       ` : ""}
 
       <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-      <p style="color: #94a3b8; font-size: 12px; text-align: center;">
-        Auto-CRM — Tu CRM local con IA
-      </p>
+      <p style="color: #94a3b8; font-size: 12px; text-align: center;">Auto-CRM — Tu CRM local con IA</p>
     </div>
   `;
 
-  // Send via Resend
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",

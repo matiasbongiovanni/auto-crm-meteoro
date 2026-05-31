@@ -3,48 +3,19 @@ import { db } from "@/db";
 import { contacts, activities, crmSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-// Field name mapping: common variations → standard field
 const FIELD_MAP: Record<string, string> = {
-  // Name
-  name: "name",
-  nombre: "name",
-  full_name: "name",
-  fullname: "name",
-  first_name: "name",
-  nombre_completo: "name",
-  // Email
-  email: "email",
-  correo: "email",
-  email_address: "email",
-  correo_electronico: "email",
-  // Phone
-  phone: "phone",
-  telefono: "phone",
-  phone_number: "phone",
-  cel: "phone",
-  celular: "phone",
-  whatsapp: "phone",
-  movil: "phone",
-  // Company
-  company: "company",
-  empresa: "company",
-  company_name: "company",
-  negocio: "company",
-  organizacion: "company",
-  // Notes
-  notes: "notes",
-  notas: "notes",
-  message: "notes",
-  mensaje: "notes",
-  comments: "notes",
-  comentarios: "notes",
-  descripcion: "notes",
+  name: "name", nombre: "name", full_name: "name", fullname: "name",
+  first_name: "name", nombre_completo: "name",
+  email: "email", correo: "email", email_address: "email", correo_electronico: "email",
+  phone: "phone", telefono: "phone", phone_number: "phone", cel: "phone",
+  celular: "phone", whatsapp: "phone", movil: "phone",
+  company: "company", empresa: "company", company_name: "company",
+  negocio: "company", organizacion: "company",
+  notes: "notes", notas: "notes", message: "notes", mensaje: "notes",
+  comments: "notes", comentarios: "notes", descripcion: "notes",
 };
 
-function extractFields(
-  payload: Record<string, unknown>
-): Record<string, string> {
-  // Handle Typeform-style nested data
+function extractFields(payload: Record<string, unknown>): Record<string, string> {
   const data =
     payload.data && typeof payload.data === "object"
       ? (payload.data as Record<string, unknown>)
@@ -61,12 +32,9 @@ function extractFields(
     }
   }
 
-  // Handle "first_name + last_name" pattern
   if (!result.name) {
-    const firstName =
-      data.first_name || data.nombre || data.firstName || data.primer_nombre;
-    const lastName =
-      data.last_name || data.apellido || data.lastName || data.apellidos;
+    const firstName = data.first_name || data.nombre || data.firstName || data.primer_nombre;
+    const lastName = data.last_name || data.apellido || data.lastName || data.apellidos;
     if (firstName) {
       result.name = [firstName, lastName].filter(Boolean).join(" ").trim();
     }
@@ -76,12 +44,10 @@ function extractFields(
 }
 
 export async function POST(request: NextRequest) {
-  // Auth check: if a webhook secret is stored, require it in the header
-  const stored = db
+  const [stored] = await db
     .select()
     .from(crmSettings)
-    .where(eq(crmSettings.key, "webhook_secret"))
-    .get();
+    .where(eq(crmSettings.key, "webhook_secret"));
 
   if (stored) {
     const secretHeader = request.headers.get("x-webhook-secret");
@@ -115,7 +81,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const now = new Date();
-    const contact = db
+    const [contact] = await db
       .insert(contacts)
       .values({
         name: fields.name,
@@ -129,18 +95,14 @@ export async function POST(request: NextRequest) {
         createdAt: now,
         updatedAt: now,
       })
-      .returning()
-      .get();
+      .returning();
 
-    // Log activity for the new lead
-    db.insert(activities)
-      .values({
-        type: "note",
-        description: `Lead recibido via webhook${fields.company ? ` (${fields.company})` : ""}`,
-        contactId: contact.id,
-        createdAt: now,
-      })
-      .run();
+    await db.insert(activities).values({
+      type: "note",
+      description: `Lead recibido via webhook${fields.company ? ` (${fields.company})` : ""}`,
+      contactId: contact.id,
+      createdAt: now,
+    });
 
     return NextResponse.json(
       {

@@ -1,5 +1,29 @@
 import type { Temperature, LeadSource, ActivityType } from "@/types";
 
+// ─── CRM Workspace ────────────────────────────────────────────────────────────
+export const DEFAULT_WORKSPACE_ID = process.env.CRM_WORKSPACE_ID || "workspace:meteoro";
+
+export const STATE_KEYS = {
+  subscriptions: "exp2_subscriptions",
+  agents: "exp2_agents",
+  pipeline: "exp2_pipeline",
+  settings: "exp2_settings",
+  calendar: "exp2_calendar",
+  companyNotes: "exp2_company_notes",
+  pendingPayments: "exp2_pending_payments",
+  proposals: "exp2_proposals",
+} as const;
+
+export const SHARED_STATE_KEYS = new Set<string>(Object.values(STATE_KEYS));
+
+export const DEFAULT_SETTINGS = {
+  defaultUsdType: "blue",
+  dashboardScope: "30d",
+  ceoNote: "",
+  monthlyGoalUsd: 0,
+} as const;
+
+// ─── Lead / Contact ────────────────────────────────────────────────────────────
 export const TEMPERATURE_CONFIG: Record<
   Temperature,
   { label: string; color: string; bgColor: string }
@@ -34,28 +58,36 @@ export const ACTIVITY_TYPE_CONFIG: Record<
   follow_up: { label: "Seguimiento", icon: "Clock" },
 };
 
+// ─── Formatting ────────────────────────────────────────────────────────────────
 export function formatCurrency(cents: number): string {
-  return new Intl.NumberFormat("es-MX", {
+  return new Intl.NumberFormat("es-AR", {
     style: "currency",
-    currency: "MXN",
+    currency: "ARS",
   }).format(cents / 100);
 }
 
+export function formatUsd(amount: number): string {
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
 export function cleanPhoneForWhatsApp(phone: string): string {
-  // "+52 55 1234 5678" → "525512345678"
   return phone.replace(/[\s\-\(\)]/g, "").replace(/^\+/, "");
 }
 
 function toDate(date: Date | number): Date {
   if (date instanceof Date) return date;
-  // If number is less than 1e12, it's in seconds; otherwise milliseconds
   return new Date(date < 1e12 ? date * 1000 : date);
 }
 
 export function formatDate(date: Date | number | null): string {
   if (!date) return "-";
   const d = toDate(date);
-  return new Intl.DateTimeFormat("es-MX", {
+  return new Intl.DateTimeFormat("es-AR", {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -70,7 +102,7 @@ export function formatRelativeDate(date: Date | number): string {
 
   if (diffDays === 0) return "Hoy";
   if (diffDays === 1) return "Ayer";
-  if (diffDays < 7) return `Hace ${diffDays} dias`;
+  if (diffDays < 7) return `Hace ${diffDays} días`;
   if (diffDays < 30) return `Hace ${Math.floor(diffDays / 7)} semanas`;
   return formatDate(date);
 }

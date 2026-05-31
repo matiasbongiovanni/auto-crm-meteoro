@@ -1,176 +1,110 @@
-# CLAUDE.md — Auto-CRM
+# CLAUDE.md — Meteoro CRM (auto-crm)
 
-> Este es un CRM completo y local que se personaliza a cada negocio.
-> Cuando un usuario abre este proyecto con Claude Code, tu trabajo es ayudarle a configurarlo,
-> usarlo, y expandirlo segun sus necesidades. Todo corre en su maquina — sin servicios externos.
+> CRM interno de Meteoro Agencia. Stack: Next.js 16 · React 19 · Tailwind v4 · shadcn/ui · Supabase (Auth + datos).
+> Este proyecto es la nueva base unificada que reemplaza a `salidas/crm-meteoro-deploy/` (legacy en migración).
 
-## Inicio rapido para el usuario
-
-Si es la primera vez que el usuario abre el proyecto, guialo con estos pasos:
-
-1. `npm install` — Instalar dependencias
-2. `npm run init:seed` — Inicializar base de datos con datos demo
-3. `npm run dev` — Iniciar servidor en http://localhost:3000
-4. Ejecutar `/setup` para personalizar el CRM a su negocio
-
-## Comandos
+## Inicio rápido
 
 ```bash
-npm run dev          # Servidor de desarrollo (http://localhost:3000)
-npm run build        # Build de produccion
-npm start            # Servidor de produccion
-npm run local        # Build + init + start (despliegue local en un comando)
-npm run init         # Inicializar base de datos
-npm run init:seed    # Inicializar + datos demo
-npm run seed         # Solo datos demo
-npm run lint         # ESLint
-npm run mcp          # Iniciar servidor MCP (para Claude Desktop/Web)
+npm run dev        # Dev server en http://localhost:3000
+npm run build      # Build de producción
+npm start          # Servidor producción
+npm run lint       # ESLint
+npm run mcp        # Servidor MCP (Claude Desktop/Web)
 ```
 
-## Comandos interactivos disponibles
+## Auth
 
-| Comando | Que hace |
-|---------|----------|
-| `/setup` | Personalizar CRM: pipeline, fuentes de leads, industria, idioma, tema |
-| `/add-lead` | Agregar un lead conversacionalmente — describe al prospecto y se crea automaticamente |
-| `/analyze-pipeline` | Analisis completo del pipeline con recomendaciones accionables |
-| `/daily-briefing` | Resumen ejecutivo del dia: follow-ups, deals calientes, prioridades |
-| `/import-contacts` | Importar contactos desde un archivo CSV |
-| `/customize` | Cambiar configuracion sin reiniciar todo |
-| `/connect` | Conectar CRM con Gmail, Calendar, Sheets, WhatsApp via MCP |
-| `/digest` | Enviar resumen diario por email (requiere Resend) |
+- Login en `/login` (email/password vía Supabase Auth)
+- Roles: `ceo` (acceso total), `admin`, `freelancer`
+- Middleware (`middleware.ts`) protege todas las rutas excepto `/login`, `/auth/*`, `/api/crm/sync`, `/api/crm/update-from-whatsapp`, `/api/v1/*`, `/api/webhook`
+- El primer usuario que se registre obtiene rol `ceo` automáticamente
 
 ## Arquitectura
 
-**Stack**: Next.js 16 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS v4 · shadcn/ui · SQLite + Drizzle ORM · @dnd-kit (kanban)
+**Stack**: Next.js 16 · React 19 · TypeScript · Tailwind v4 · shadcn/ui · Supabase Auth + Postgres
 
-**100% local**: SQLite como base de datos (archivo en `data/crm.db`). No requiere ningun servicio externo.
+**Capa de datos híbrida:**
+- Normalizado en Supabase: `crm_leads`, `crm_ingresos`, `crm_egresos`, `crm_profiles`, `crm_api_keys`, `crm_onboarding_docs`, `crm_proposals`
+- JSON en `crm_state` (namespaced por `state_key`): pipeline, agentes, suscripciones, calendario, notas por empresa, pagos pendientes
 
-**Alias**: `@/*` → `./src/*`
+**Diseño**: Dark monocromo negro/blanco. Primary = blanco (`#fafafa`). Tipografía: Geist Sans + Geist Mono (next/font/google). Tokens centralizados en `globals.css`. Sin toggle light/dark.
 
-### Directorios clave
+## Archivos clave
 
-- `src/app/` — Paginas y API routes (App Router)
-- `src/components/` — Componentes React organizados por feature
-- `src/db/` — Schema Drizzle, cliente DB, seeder
-- `src/lib/` — Utilidades: claude.ts (AI), scoring.ts, constants.ts
-- `src/types/` — TypeScript types para entidades CRM
-- `.claude/commands/` — Comandos interactivos (los de la tabla arriba)
-- `mcp/` — Servidor MCP para integracion con Claude Desktop/Web
-- `scripts/` — Scripts de inicializacion y utilidades
+| Archivo | Rol |
+|---------|-----|
+| `src/components/crm/provider.tsx` | `CrmProvider`/`useCrm` — estado global y acciones |
+| `src/lib/crm-server.ts` | Router de acciones del backend + RBAC |
+| `src/lib/constants.ts` | `DEFAULT_WORKSPACE_ID`, `STATE_KEYS`, formateo |
+| `src/types/crm.ts` | Tipos TypeScript de todas las entidades |
+| `src/lib/finance.ts` | Lógica financiera (MRR, filtros por mes) |
+| `src/lib/api-auth.ts` | API keys (hash SHA-256, scopes) |
+| `src/lib/supabase-env.ts` | Validación de variables de entorno Supabase |
+| `src/lib/chatwoot.ts` | Cliente Platform API de Meteoro Chat (server-only, SSO + Platform API) |
+| `middleware.ts` | Route guard (redirige `/login` si no autenticado) |
+| `supabase/meteoro-schema.sql` | Schema SQL — ejecutar en Supabase SQL Editor |
 
-### Modelo de datos
+## Rutas
 
-- **Contacts**: Leads con temperatura (frio/tibio/caliente), score, fuente, historial
-- **Deals**: Oportunidades de venta con valor (en centavos), etapa, probabilidad
-- **Activities**: Interacciones (llamada/email/reunion/nota/follow-up) con fechas
-- **Pipeline Stages**: Etapas configurables del pipeline de ventas
-- **CRM Settings**: Configuracion key-value
+### App (protegidas por auth)
+- `(app)/dashboard/` — Dashboard de negocio (métricas, revenue, pipeline)
+- `(app)/leads/` — Gestión de leads *(próxima fase)*
+- `(app)/pipeline/` — Kanban *(próxima fase)*
+- `(app)/finanzas/` — Ingresos/egresos/suscripciones/pagos *(próxima fase)*
+- `(app)/tareas/` — Calendario y tareas *(próxima fase)*
+- `(app)/documentos/` — Presupuestos/onboarding/planes *(próxima fase)*
+- `(app)/agentes/` — Config agentes prospector *(próxima fase)*
+- `(app)/mensajeria/` — **Meteoro Chat self-hosted embebido con SSO** ✓ (implementado 2026-05-31)
+- `(app)/admin/` — Usuarios, roles, API keys (solo ceo) *(próxima fase)*
 
-### API Routes
-
-| Endpoint | Metodos | Descripcion |
-|----------|---------|-------------|
-| `/api/contacts` | GET, POST | Listar (con busqueda/filtro) y crear contactos |
-| `/api/contacts/[id]` | GET, PUT, DELETE | CRUD individual de contacto |
-| `/api/deals` | GET, POST | Listar y crear deals |
-| `/api/deals/[id]` | GET, PUT, DELETE | CRUD individual de deal |
-| `/api/activities` | GET, POST | Listar y registrar actividades |
-| `/api/activities/[id]` | PUT, DELETE | Completar o eliminar actividad |
-| `/api/pipeline` | GET, PUT | Pipeline completo; mover deals entre etapas |
-| `/api/classify` | POST | Clasificar lead (IA o reglas) |
-| `/api/followups` | GET | Follow-ups pendientes (vencidos, hoy, proximos) |
-| `/api/import` | POST | Importacion masiva de contactos |
-| `/api/webhook` | POST | Recibir leads de formularios externos (Typeform, Tally, etc.) |
-| `/api/export` | GET | Exportar contactos o deals como CSV (?type=contacts o deals) |
-| `/api/digest` | POST | Enviar resumen diario por email (requiere RESEND_API_KEY) |
-| `/api/crm/sync` | GET | Obtener leads para sincronización externa (filtro temperature, limit, offset). Requiere header `x-api-key` |
-| `/api/crm/update-from-whatsapp` | POST | Actualizar contacto y registrar actividad desde bot externo. Body: `{ contactId, temperature?, score?, notes?, activityType, activityDescription }`. Requiere header `x-api-key` |
-
-## Configuracion del negocio
-
-El archivo `crm-config.json` (raiz del proyecto) tiene la configuracion personalizada.
-Se genera con `/setup` y se modifica con `/customize`.
-
-El archivo en `public/crm-config.json` es la copia por defecto (template).
-
-## Integración con Sistemas Externos (WhatsApp Bot, etc.)
-
-### Configurar API Key
-
-Para conectar bots externos (ej: WhatsApp AgentKit), primero generar una API key:
-
-1. Abrir CRM en http://localhost:3000
-2. Ir a Configuración > Integraciones
-3. Generar "API Key para WhatsApp Bot"
-4. Copiar la key y guardar en `.env` del bot
-
-La API key se almacena en `crmSettings` tabla con key `whatsapp_api_key`.
-
-### Endpoints de Sincronización
-
-Los bots externos usan estos endpoints con el header `x-api-key`:
-
-- `GET /api/crm/sync?temperature=cold&limit=10` — Obtener leads para prospección
-- `POST /api/crm/update-from-whatsapp` — Actualizar lead después de interacción
-
-## Reglas de codigo
-
-- **Idioma UI**: Espanol por defecto. Soporte bilingue con `const t = { en: {...}, es: {...} }`
-- **Max ~300 lineas por componente**. Dividir si crece mas
-- **No emojis como iconos** — usar Lucide React (SVG)
-- **Valores monetarios**: Centavos (integer). Usar `formatCurrency()` para mostrar
-- **Fechas**: `date-fns` para formateo. SQLite almacena como integer timestamps
-- **Forms**: react-hook-form + zod
-- **Drag & drop**: @dnd-kit (NO react-beautiful-dnd)
-- **Estilos**: Tailwind CSS v4 (config via CSS, no tailwind.config.ts)
-
-## Modos de IA
-
-1. **Terminal Mode** (default, sin API key): Toda la IA via tus comandos de Claude Code.
-   El usuario describe lo que necesita, tu lees/escribes datos via `curl` a los API routes.
-
-2. **API Mode** (opcional): Si el usuario pone `ANTHROPIC_API_KEY` en `.env.local`,
-   la web tiene clasificacion automatica de leads inline.
-
-3. **MCP Mode**: El usuario puede conectar Claude Desktop/Web al CRM via el servidor MCP.
-   Config: `npm run mcp` o agregar a `claude_desktop_config.json`.
-
-**Sin API key, el CRM funciona 100%.** La IA es un extra, no un requisito.
-
-## Despliegue
-
-### Local (desarrollo)
-```bash
-npm run dev
-```
-
-### Local (produccion)
-```bash
-npm run local  # build + init + start en puerto 3000
-```
-
-### Docker
-```bash
-docker compose up -d  # Corre en puerto 3000, datos persisten en ./data/
-```
-
-### MCP (Claude Desktop/Web)
-Agregar a `~/.claude/claude_desktop_config.json`:
-```json
-{
-  "mcpServers": {
-    "auto-crm": {
-      "command": "npx",
-      "args": ["tsx", "/ruta/al/proyecto/mcp/crm-server.ts"]
-    }
-  }
-}
-```
+### API
+- `/api/crm` — Router principal (GET state, POST acciones)
+- `/api/crm/sync` — Sync WhatsApp bot (auth por `x-api-key`)
+- `/api/crm/update-from-whatsapp` — Update desde bot (auth por `x-api-key`)
+- `/api/exchange` — Cotización USD (dolarapi.com)
+- `/api/usage` — Stats de uso Claude/Codex
+- `/api/mensajeria/sso` — Genera URL SSO para auto-login en Meteoro Chat (auth Supabase requerido)
 
 ## Variables de entorno
 
-- `ANTHROPIC_API_KEY` — Opcional. Para IA en la interfaz web (clasificacion de leads)
-- `RESEND_API_KEY` — Opcional. Para enviar digest diario por email (resend.com, gratis)
-- `DIGEST_EMAIL` — Opcional. Email donde recibir el digest
-- `DIGEST_FROM` — Opcional. Email remitente del digest (default: onboarding@resend.dev)
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://<ref>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
+
+# Meteoro Chat self-hosted (sección Mensajería)
+NEXT_PUBLIC_METEORO_CHAT_URL=http://localhost:3008
+CHATWOOT_PLATFORM_TOKEN=<platform-api-token>   # server-only, NUNCA con NEXT_PUBLIC_
+CHATWOOT_AGENT_USER_ID=1                        # ID del agente que se loguea vía SSO
+CHATWOOT_DEFAULT_ACCOUNT_ID=1                   # Account ID de la cuenta Meteoro Interno
+```
+
+Ver `salidas/meteoro-chat/scripts/seed-instancia.sh` para obtener los valores de Meteoro Chat.
+
+## Reglas de código
+
+- Español en la UI (español rioplatense)
+- ≤300 líneas por componente; dividir si crece
+- Lucide para íconos (no emojis)
+- Dinero en USD como `number` (no centavos — el CRM de Meteoro usa USD directamente)
+- date-fns para fechas
+- Tailwind v4 vía CSS (no tailwind.config.ts)
+- shadcn/ui como sistema único de componentes
+- Dark-first: todos los tokens definidos en `:root` y `.dark` con los mismos valores oscuros
+
+## Estado de migración (2026-05-30)
+
+FASE 0 ✓ completada:
+- Backend portado (crm-server, finance, proposals-store, api-auth, supabase libs)
+- Auth Supabase + middleware route guard
+- Sistema de diseño dark monocromo negro/blanco + Geist (refactorizado 2026-05-31)
+- Dashboard de negocio (BusinessMetrics + RevenueChart)
+- Login page
+
+FASE 0.5 ✓ completada (2026-05-31):
+- Mensajería: Meteoro Chat self-hosted embebido con SSO automático
+- SSO bridge server-side (src/lib/chatwoot.ts + /api/mensajeria/sso)
+- frame-ancestors configurado en el core para desarrollo
+
+FASE 1, 2, 3 pendientes (leads, pipeline, tareas, finanzas, documentos, agentes, admin)

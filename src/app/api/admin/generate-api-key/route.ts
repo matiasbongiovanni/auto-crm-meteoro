@@ -4,25 +4,12 @@ import { crmSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 
-// Función helper para validar si el user es admin
-// En un sistema real, verificarías sesión, JWT, etc.
-// Por ahora: simple check de header o variable de entorno
 function isAdmin(request: NextRequest): boolean {
-  // Opción 1: Header secreto (solo en desarrollo)
   const adminSecret = request.headers.get("x-admin-secret");
-  if (adminSecret === process.env.ADMIN_SECRET) {
-    return true;
-  }
-
-  // Opción 2: En producción, verificarías sesión de usuario
-  // const session = await getServerSession();
-  // return session?.user?.role === "admin";
-
-  return false;
+  return adminSecret === process.env.ADMIN_SECRET;
 }
 
 export async function POST(request: NextRequest) {
-  // Validar admin
   if (!isAdmin(request)) {
     return NextResponse.json(
       { error: "No autorizado. Requiere x-admin-secret header o sesión admin" },
@@ -31,28 +18,23 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Generar API key única
     const apiKey = `sk-crm_${uuidv4().replace(/-/g, "").substring(0, 32)}`;
 
-    // Verificar que no exista ya
-    const existing = db
+    const [existing] = await db
       .select()
       .from(crmSettings)
-      .where(eq(crmSettings.key, "whatsapp_api_key"))
-      .get();
+      .where(eq(crmSettings.key, "whatsapp_api_key"));
 
     if (existing) {
-      // Si ya existe, actualizar
-      db.update(crmSettings)
+      await db
+        .update(crmSettings)
         .set({ value: apiKey })
-        .where(eq(crmSettings.key, "whatsapp_api_key"))
-        .run();
+        .where(eq(crmSettings.key, "whatsapp_api_key"));
     } else {
-      // Crear nueva
-      db.insert(crmSettings).values({
+      await db.insert(crmSettings).values({
         key: "whatsapp_api_key",
         value: apiKey,
-      }).run();
+      });
     }
 
     return NextResponse.json(
@@ -75,7 +57,6 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  // Endpoint para verificar si existe una API key (sin revelarla)
   if (!isAdmin(request)) {
     return NextResponse.json(
       { error: "No autorizado" },
@@ -84,11 +65,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const existing = db
+    const [existing] = await db
       .select()
       .from(crmSettings)
-      .where(eq(crmSettings.key, "whatsapp_api_key"))
-      .get();
+      .where(eq(crmSettings.key, "whatsapp_api_key"));
 
     return NextResponse.json({
       hasApiKey: !!existing,
@@ -105,7 +85,6 @@ export async function GET(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  // Endpoint para rotar/eliminar API key
   if (!isAdmin(request)) {
     return NextResponse.json(
       { error: "No autorizado" },
@@ -114,9 +93,7 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    db.delete(crmSettings)
-      .where(eq(crmSettings.key, "whatsapp_api_key"))
-      .run();
+    await db.delete(crmSettings).where(eq(crmSettings.key, "whatsapp_api_key"));
 
     return NextResponse.json({
       success: true,

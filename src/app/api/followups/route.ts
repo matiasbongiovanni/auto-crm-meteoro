@@ -4,7 +4,7 @@ import { activities, contacts } from "@/db/schema";
 import { eq, isNull, asc } from "drizzle-orm";
 
 export async function GET() {
-  const pendingFollowups = db
+  const pendingFollowups = await db
     .select({
       id: activities.id,
       type: activities.type,
@@ -20,38 +20,26 @@ export async function GET() {
     .from(activities)
     .leftJoin(contacts, eq(activities.contactId, contacts.id))
     .where(isNull(activities.completedAt))
-    .orderBy(asc(activities.scheduledAt))
-    .all();
+    .orderBy(asc(activities.scheduledAt));
 
-  const now = Date.now() / 1000;
+  const now = Date.now();
 
   const categorized = {
     overdue: pendingFollowups.filter((f) => {
       if (!f.scheduledAt) return false;
-      const ts =
-        typeof f.scheduledAt === "number"
-          ? f.scheduledAt
-          : f.scheduledAt.getTime() / 1000;
-      return ts < now;
+      return f.scheduledAt.getTime() < now;
     }),
     today: pendingFollowups.filter((f) => {
       if (!f.scheduledAt) return false;
-      const ts =
-        typeof f.scheduledAt === "number"
-          ? f.scheduledAt
-          : f.scheduledAt.getTime() / 1000;
-      const startOfDay = Math.floor(now / 86400) * 86400;
-      const endOfDay = startOfDay + 86400;
-      return ts >= startOfDay && ts < endOfDay;
+      const ts = f.scheduledAt.getTime();
+      const startOfDay = new Date().setHours(0, 0, 0, 0);
+      const endOfDay = new Date().setHours(23, 59, 59, 999);
+      return ts >= startOfDay && ts <= endOfDay;
     }),
     upcoming: pendingFollowups.filter((f) => {
       if (!f.scheduledAt) return false;
-      const ts =
-        typeof f.scheduledAt === "number"
-          ? f.scheduledAt
-          : f.scheduledAt.getTime() / 1000;
-      const endOfDay = (Math.floor(now / 86400) + 1) * 86400;
-      return ts >= endOfDay;
+      const endOfDay = new Date().setHours(23, 59, 59, 999);
+      return f.scheduledAt.getTime() > endOfDay;
     }),
     unscheduled: pendingFollowups.filter((f) => !f.scheduledAt),
   };

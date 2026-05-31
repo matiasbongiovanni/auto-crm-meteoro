@@ -1,6 +1,6 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { pgTable, text, integer, timestamp, boolean } from "drizzle-orm/pg-core";
 
-export const contacts = sqliteTable("contacts", {
+export const contacts = pgTable("contacts", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
@@ -12,26 +12,22 @@ export const contacts = sqliteTable("contacts", {
   temperature: text("temperature").notNull().default("cold"),
   score: integer("score").notNull().default(0),
   notes: text("notes"),
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
-    .notNull()
-    .$defaultFn(() => new Date()),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-export const pipelineStages = sqliteTable("pipeline_stages", {
+export const pipelineStages = pgTable("pipeline_stages", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull(),
   order: integer("order").notNull(),
   color: text("color").notNull().default("#64748b"),
-  isWon: integer("is_won", { mode: "boolean" }).notNull().default(false),
-  isLost: integer("is_lost", { mode: "boolean" }).notNull().default(false),
+  isWon: boolean("is_won").notNull().default(false),
+  isLost: boolean("is_lost").notNull().default(false),
 });
 
-export const deals = sqliteTable("deals", {
+export const deals = pgTable("deals", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
@@ -43,18 +39,14 @@ export const deals = sqliteTable("deals", {
   contactId: text("contact_id")
     .notNull()
     .references(() => contacts.id),
-  expectedClose: integer("expected_close", { mode: "timestamp" }),
+  expectedClose: timestamp("expected_close"),
   probability: integer("probability").notNull().default(0),
   notes: text("notes"),
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
-    .notNull()
-    .$defaultFn(() => new Date()),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-export const activities = sqliteTable("activities", {
+export const activities = pgTable("activities", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
@@ -64,14 +56,12 @@ export const activities = sqliteTable("activities", {
     .notNull()
     .references(() => contacts.id),
   dealId: text("deal_id").references(() => deals.id),
-  scheduledAt: integer("scheduled_at", { mode: "timestamp" }),
-  completedAt: integer("completed_at", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .notNull()
-    .$defaultFn(() => new Date()),
+  scheduledAt: timestamp("scheduled_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const crmSettings = sqliteTable("crm_settings", {
+export const crmSettings = pgTable("crm_settings", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),
 });

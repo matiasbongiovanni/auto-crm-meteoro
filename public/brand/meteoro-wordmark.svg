@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40" fill="none">
+  <!-- Lightning bolt isotipo -->
+  <path d="M12 4L4 20H11L6 36L22 16H14L20 4Z" fill="#7c6ef2"/>
+  <!-- Wordmark -->
+  <text x="30" y="28" font-family="Georgia, serif" font-size="18" font-weight="700" fill="#f0f0f8" letter-spacing="-0.5">METEORO</text>
+</svg>

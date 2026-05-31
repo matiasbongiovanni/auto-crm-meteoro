@@ -21,11 +21,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const contact = db
+  const [contact] = await db
     .select()
     .from(contacts)
-    .where(eq(contacts.id, contactId))
-    .get();
+    .where(eq(contacts.id, contactId));
 
   if (!contact) {
     return NextResponse.json(
@@ -34,11 +33,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const contactActivities = db
+  const contactActivities = await db
     .select()
     .from(activities)
-    .where(eq(activities.contactId, contactId))
-    .all();
+    .where(eq(activities.contactId, contactId));
 
   if (isAIEnabled()) {
     try {
@@ -52,54 +50,34 @@ export async function POST(request: NextRequest) {
         contactActivities.map((a) => ({
           type: a.type as "call" | "email" | "meeting" | "note" | "follow_up",
           description: a.description,
-          date: a.createdAt
-            ? new Date(
-                typeof a.createdAt === "number"
-                  ? a.createdAt * 1000
-                  : a.createdAt
-              ).toISOString()
-            : "unknown",
+          date: a.createdAt ? new Date(a.createdAt).toISOString() : "unknown",
         }))
       );
 
-      // Update contact with AI classification
-      db.update(contacts)
+      await db
+        .update(contacts)
         .set({
           temperature: result.temperature,
           score: result.score,
           updatedAt: new Date(),
         })
-        .where(eq(contacts.id, contactId))
-      .run();
+        .where(eq(contacts.id, contactId));
 
-      return NextResponse.json({
-        ...result,
-        mode: "ai",
-      });
+      return NextResponse.json({ ...result, mode: "ai" });
     } catch {
       // AI failed — fall through to rule-based scoring below
     }
   }
 
-  // Rule-based fallback
   const lastActivity = contactActivities.sort((a, b) => {
-    const aTime =
-      typeof a.createdAt === "number"
-        ? a.createdAt
-        : a.createdAt?.getTime() || 0;
-    const bTime =
-      typeof b.createdAt === "number"
-        ? b.createdAt
-        : b.createdAt?.getTime() || 0;
+    const aTime = a.createdAt?.getTime() || 0;
+    const bTime = b.createdAt?.getTime() || 0;
     return bTime - aTime;
   })[0];
 
   const daysSinceLastActivity = lastActivity
     ? Math.floor(
-        (Date.now() -
-          (typeof lastActivity.createdAt === "number"
-            ? lastActivity.createdAt * 1000
-            : lastActivity.createdAt?.getTime() || Date.now())) /
+        (Date.now() - (lastActivity.createdAt?.getTime() || Date.now())) /
           (1000 * 60 * 60 * 24)
       )
     : 999;
@@ -117,10 +95,10 @@ export async function POST(request: NextRequest) {
 
   const temperature = suggestTemperature(score);
 
-  db.update(contacts)
+  await db
+    .update(contacts)
     .set({ temperature, score, updatedAt: new Date() })
-    .where(eq(contacts.id, contactId))
-    .run();
+    .where(eq(contacts.id, contactId));
 
   return NextResponse.json({
     temperature,

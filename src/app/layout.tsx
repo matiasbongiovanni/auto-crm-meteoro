@@ -1,21 +1,14 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { Header } from "@/components/layout/Header";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
-import { NotificationChecker } from "@/components/shared/NotificationChecker";
 
-const inter = Inter({
-  variable: "--font-sans",
-  subsets: ["latin"],
-});
+const geistSans = Geist({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
+const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "Auto-CRM - Tu CRM con Inteligencia Artificial",
-  description:
-    "CRM conversacional con pipeline de ventas, clasificacion automatica de leads y seguimiento inteligente. Construido con Claude Code.",
+  title: "Meteoro CRM",
+  description: "Sistema de gestión de clientes, finanzas y agentes de Meteoro Agencia",
 };
 
 export default function RootLayout({
@@ -24,19 +17,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
-      <body className="min-h-full flex" suppressHydrationWarning>
-        <TooltipProvider>
-          <Sidebar />
-          <div className="flex-1 flex flex-col min-h-screen">
-            <Header />
-            <main className="flex-1 p-4 md:p-6 bg-background overflow-auto">
-              {children}
-            </main>
-          </div>
-          <Toaster />
-          <NotificationChecker />
-        </TooltipProvider>
+    <html lang="es" className={`dark h-full ${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
+      <body className="min-h-full bg-background text-foreground antialiased" suppressHydrationWarning>
+        {children}
+        <Toaster theme="dark" position="top-right" />
       </body>
     </html>
   );

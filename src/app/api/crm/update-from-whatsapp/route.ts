@@ -1,96 +1,56 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
-import { contacts, activities, crmSettings } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import type { WhatsAppUpdate, Contact } from "@/types";
+import { authenticateApiKey, requireScope } from "@/lib/api-auth";
+import { getSupabaseServerClient } from "@/lib/server-supabase";
 
-// Verificar API key de integración
-function validateApiKey(request: NextRequest): boolean {
-  const apiKey = request.headers.get("x-api-key");
-  if (!apiKey) return false;
+export const runtime = "nodejs";
 
-  const stored = db
-    .select()
-    .from(crmSettings)
-    .where(eq(crmSettings.key, "whatsapp_api_key"))
-    .get();
-
-  return stored ? apiKey === stored.value : false;
-}
+const TEMPERATURA_MAP: Record<string, string> = {
+  cold: "frio", warm: "tibio", hot: "caliente",
+  frio: "frio", tibio: "tibio", caliente: "caliente",
+};
 
 export async function POST(request: NextRequest) {
-  // Validar autenticación
-  if (!validateApiKey(request)) {
-    return NextResponse.json(
-      { error: "API key inválida o faltante" },
-      { status: 401 }
-    );
-  }
+  const ctx = await authenticateApiKey(request);
+  const denied = requireScope(ctx, "write");
+  if (denied) return denied;
 
-  let body: WhatsAppUpdate;
+  let body: {
+    leadId?: string;
+    contactId?: string;
+    temperatura?: string;
+    temperature?: string;
+    notas?: string;
+    notes?: string;
+    canal_contacto?: string;
+    activityType?: string;
+    activityDescription?: string;
+  };
+
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
   }
 
-  const { contactId, temperature, score, notes, activityType, activityDescription } = body;
+  const leadId = body.leadId || body.contactId;
+  if (!leadId) return NextResponse.json({ error: "Falta leadId o contactId" }, { status: 400 });
 
-  if (!contactId || !activityType || !activityDescription) {
-    return NextResponse.json(
-      { error: "Faltan campos: contactId, activityType, activityDescription" },
-      { status: 400 }
-    );
-  }
+  const admin = getSupabaseServerClient();
+  const { data: existing } = await admin.from("crm_leads").select("id").eq("id", leadId).maybeSingle();
+  if (!existing) return NextResponse.json({ error: "Lead no encontrado" }, { status: 404 });
 
-  try {
-    // Verificar que el contacto existe
-    const existing = db
-      .select()
-      .from(contacts)
-      .where(eq(contacts.id, contactId))
-      .get();
+  const updateData: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+    ultimo_contacto: new Date().toISOString(),
+  };
 
-    if (!existing) {
-      return NextResponse.json(
-        { error: "Contacto no encontrado" },
-        { status: 404 }
-      );
-    }
+  const tempRaw = body.temperatura || body.temperature;
+  if (tempRaw) updateData.temperatura = TEMPERATURA_MAP[tempRaw] || tempRaw;
+  if (body.notas || body.notes) updateData.notas = body.notas || body.notes;
+  if (body.canal_contacto) updateData.canal_contacto = body.canal_contacto;
 
-    // Preparar datos de actualización
-    const now = new Date();
-    const updateData: Record<string, any> = { updatedAt: now };
+  const { error } = await admin.from("crm_leads").update(updateData).eq("id", leadId);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    if (temperature !== undefined) updateData.temperature = temperature;
-    if (score !== undefined) updateData.score = Math.max(0, Math.min(100, score));
-    if (notes !== undefined) updateData.notes = notes;
-
-    // Actualizar contacto
-    const updatedContact = db
-      .update(contacts)
-      .set(updateData)
-      .where(eq(contacts.id, contactId))
-      .returning()
-      .get() as Contact;
-
-    // Registrar actividad
-    db.insert(activities)
-      .values({
-        type: activityType,
-        description: activityDescription,
-        contactId: contactId,
-        createdAt: now,
-      })
-      .run();
-
-    return NextResponse.json(updatedContact, { status: 200 });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        error: `Error al actualizar contacto: ${error instanceof Error ? error.message : "Unknown"}`,
-      },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json({ ok: true, leadId });
 }

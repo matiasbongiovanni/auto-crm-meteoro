@@ -1,4 +1,4 @@
-import type { SyncLeadResponse, WhatsAppUpdate, Contact } from "@/types";
+import type { SyncLeadResponse, WhatsAppUpdate, Contact, ActivityType } from "@/types";
 
 export class WhatsAppSyncClient {
   private baseUrl: string;
@@ -65,7 +65,7 @@ export class WhatsAppSyncClient {
   ): Promise<Contact> {
     return this.updateLeadFromWhatsApp({
       contactId,
-      activityType: activityType as any,
+      activityType: activityType as ActivityType,
       activityDescription: description,
     });
   }
