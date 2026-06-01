@@ -40,10 +40,12 @@ function CallbackContent() {
 
     // detectSessionInUrl: true (default) handles the code exchange automatically.
     // We listen for the result instead of calling exchangeCodeForSession manually.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN") handleSession(session);
-      if (event === "INITIAL_SESSION" && session) handleSession(session);
-    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event: string, session: Session | null) => {
+        if (event === "SIGNED_IN") handleSession(session);
+        if (event === "INITIAL_SESSION" && session) handleSession(session);
+      }
+    );
 
     // Fallback: si no hay evento en 10s, algo falló
     const timer = setTimeout(() => {
