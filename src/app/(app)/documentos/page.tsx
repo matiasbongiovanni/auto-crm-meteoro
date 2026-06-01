@@ -162,13 +162,14 @@ export default function DocumentosPage() {
   const filteredProps = filterEstado === "todos" ? state.proposals : state.proposals.filter((p) => p.estado === filterEstado);
   const totalProposals = state.proposals.filter((p) => p.estado === "aceptado").reduce((a, p) => a + (p.monto_usd || 0), 0);
 
-  function openGenerador(tipo: "cotizacion" | "onboarding" | "planes", cliente = "") {
-    const map = { cotizacion: "cotizador.html", onboarding: "onboarding.html", planes: "planes.html" };
-    const titles = { cotizacion: "Cotizador Meteoro", onboarding: "Generador de Onboarding / Bienvenida", planes: "Generador de Planes" };
+  function openGenerador(tipo: "cotizacion" | "onboarding" | "planes" | "presupuesto" | "bienvenida", cliente = "") {
+    const map = { cotizacion: "cotizador.html", onboarding: "onboarding.html", planes: "planes.html", presupuesto: "presupuesto.html", bienvenida: "bienvenida.html" };
+    const titles = { cotizacion: "Cotizador Meteoro", onboarding: "Generador de Onboarding / Bienvenida", planes: "Generador de Planes", presupuesto: "Presupuesto Meteoro", bienvenida: "Carta de Bienvenida Meteoro" };
+    const tiposCRM = { cotizacion: "cotizacion", onboarding: "onboarding", planes: "planes", presupuesto: "cotizacion", bienvenida: "onboarding" } as const;
     const params = new URLSearchParams();
     if (cliente) params.set("cliente", cliente);
     const src = `/docs/${map[tipo]}${cliente ? "?" + params.toString() : ""}`;
-    setGenerador({ src, title: titles[tipo], tipo });
+    setGenerador({ src, title: titles[tipo], tipo: tiposCRM[tipo] });
   }
 
   function handleGeneradorSaved(payload: Record<string, unknown>) {
@@ -217,14 +218,20 @@ export default function DocumentosPage() {
     <div className="space-y-4">
       {/* Botones de generadores */}
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" onClick={() => openGenerador("cotizacion")} className="bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5">
-          <Plus className="h-3.5 w-3.5" /> Nueva cotización
+        <Button size="sm" onClick={() => openGenerador("presupuesto")} className="bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5">
+          <Plus className="h-3.5 w-3.5" /> Presupuesto
         </Button>
-        <Button size="sm" variant="outline" onClick={() => openGenerador("onboarding")} className="border-border/50 gap-1.5">
-          <Plus className="h-3.5 w-3.5" /> Onboarding / Bienvenida
+        <Button size="sm" variant="outline" onClick={() => openGenerador("bienvenida")} className="border-border/50 gap-1.5">
+          <Plus className="h-3.5 w-3.5" /> Bienvenida
         </Button>
-        <Button size="sm" variant="outline" onClick={() => openGenerador("planes")} className="border-border/50 gap-1.5">
-          <Plus className="h-3.5 w-3.5" /> Plan mensual
+        <Button size="sm" variant="ghost" onClick={() => openGenerador("cotizacion")} className="gap-1.5 text-muted-foreground text-[11px]">
+          Cotizador v1
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => openGenerador("onboarding")} className="gap-1.5 text-muted-foreground text-[11px]">
+          Onboarding v1
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => openGenerador("planes")} className="gap-1.5 text-muted-foreground text-[11px]">
+          Planes v1
         </Button>
       </div>
 
