@@ -1,0 +1,9 @@
+// Regenerar: `base64 -w 0 <archivo.svg>` y actualizar la constante correspondiente.
+
+// Logo con texto blanco — para fondos oscuros (bienvenida negra).
+export const LOGO_LIGHT_DATA_URI =
+  "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgNDAiIGZpbGw9Im5vbmUiPjxwYXRoIGQ9Ik0xMiA0TDQgMjBIMTFMNiAzNkwyMiAxNkgxNEwyMCA0WiIgZmlsbD0iI2EwOWNmNyIvPjx0ZXh0IHg9IjMwIiB5PSIyOCIgZm9udC1mYW1pbHk9Ikdlb3JnaWEsc2VyaWYiIGZvbnQtc2l6ZT0iMTgiIGZvbnQtd2VpZ2h0PSI3MDAiIGZpbGw9IiNmZmZmZmYiIGxldHRlci1zcGFjaW5nPSItMC41Ij5NRVRFT1JPPC90ZXh0Pjwvc3ZnPg==";
+
+// Logo con texto negro — para fondos claros (presupuesto blanco).
+export const LOGO_DARK_DATA_URI =
+  "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgNDAiIGZpbGw9Im5vbmUiPjxwYXRoIGQ9Ik0xMiA0TDQgMjBIMTFMNiAzNkwyMiAxNkgxNEwyMCA0WiIgZmlsbD0iIzViNGZkNCIvPjx0ZXh0IHg9IjMwIiB5PSIyOCIgZm9udC1mYW1pbHk9Ikdlb3JnaWEsc2VyaWYiIGZvbnQtc2l6ZT0iMTgiIGZvbnQtd2VpZ2h0PSI3MDAiIGZpbGw9IiMxYTFhMWEiIGxldHRlci1zcGFjaW5nPSItMC41Ij5NRVRFT1JPPC90ZXh0Pjwvc3ZnPg==";

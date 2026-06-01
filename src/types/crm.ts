@@ -97,6 +97,8 @@ export type Settings = {
   dashboardScope: "7d" | "30d" | "90d";
   ceoNote: string;
   monthlyGoalUsd: number;
+  hideGoalAmount: boolean;
+  revenueHiddenByDefault: boolean;
 };
 
 export type UsageSnapshot = {
@@ -156,6 +158,7 @@ export type Proposal = {
   estado: ProposalStatus;
   link_documento: string | null;
   notas: string;
+  datos?: import("@/lib/documents/types").PresupuestoData | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -171,6 +174,7 @@ export type OnboardingDoc = {
   fecha: string;
   estado: OnboardingDocStatus;
   notas?: string;
+  datos?: import("@/lib/documents/types").BienvenidaData | null;
   created_at?: string;
   updated_at?: string;
 };

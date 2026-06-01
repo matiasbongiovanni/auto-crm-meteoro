@@ -86,6 +86,7 @@ create table if not exists public.crm_proposals (
     check (estado in ('enviado','en_negociacion','aceptado','rechazado','vencido')),
   link_documento text,
   notas text,
+  datos jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -119,6 +120,7 @@ create table if not exists public.crm_onboarding_docs (
   fecha date not null default current_date,
   estado text not null default 'borrador' check (estado in ('borrador','enviado','firmado')),
   notas text,
+  datos jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

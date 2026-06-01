@@ -53,7 +53,7 @@ npm run mcp        # Servidor MCP (Claude Desktop/Web)
 - `(app)/pipeline/` — Kanban *(próxima fase)*
 - `(app)/finanzas/` — Ingresos/egresos/suscripciones/pagos *(próxima fase)*
 - `(app)/tareas/` — Calendario y tareas *(próxima fase)*
-- `(app)/documentos/` — Presupuestos/onboarding/planes *(próxima fase)*
+- `(app)/documentos/` — **Generador de documentos Meteoro** ✓ (implementado 2026-06-01)
 - `(app)/agentes/` — Config agentes prospector *(próxima fase)*
 - `(app)/mensajeria/` — **Meteoro Chat self-hosted embebido con SSO** ✓ (implementado 2026-05-31)
 - `(app)/admin/` — Usuarios, roles, API keys (solo ceo) *(próxima fase)*
@@ -107,4 +107,13 @@ FASE 0.5 ✓ completada (2026-05-31):
 - SSO bridge server-side (src/lib/chatwoot.ts + /api/mensajeria/sso)
 - frame-ancestors configurado en el core para desarrollo
 
-FASE 1, 2, 3 pendientes (leads, pipeline, tareas, finanzas, documentos, agentes, admin)
+FASE 0.6 ✓ completada (2026-06-01):
+- Documentos: generador de presupuestos y cartas de bienvenida con plantillas HTML Meteoro
+- Editor dinámico por tipo (agregar/quitar ítems, fases, planes, métodos de pago, pasos, firmas)
+- Preview fiel en `<iframe srcDoc>` (fondo blanco / fondo negro según plantilla)
+- Export PDF vía `window.print()` del iframe + descarga `.html` autocontenido con logo embebido
+- Campo `datos jsonb` en `crm_proposals` y `crm_onboarding_docs`; migración en `supabase/migrations/2026-06-01-documentos-datos-jsonb.sql`
+- Archivos nuevos: `src/lib/documents/` (types, defaults, logo, render-presupuesto, render-bienvenida) + `src/components/documentos/` (document-preview, presupuesto-editor, bienvenida-editor)
+- ⚠️ Aplicar la migración SQL en Supabase antes de guardar documentos con datos ricos.
+
+FASE 1, 2, 3 pendientes (leads, pipeline, tareas, finanzas, agentes, admin)

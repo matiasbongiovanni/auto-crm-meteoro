@@ -29,6 +29,7 @@ function normalizeProposal(item: Partial<Proposal> & Record<string, unknown>): P
     estado: VALID_ESTADOS.has(item.estado as ProposalStatus) ? (item.estado as ProposalStatus) : "enviado",
     link_documento: item.link_documento ? String(item.link_documento) : null,
     notas: String(item.notas || ""),
+    datos: (item.datos as Proposal["datos"]) ?? null,
     created_at: item.created_at ? String(item.created_at) : undefined,
     updated_at: item.updated_at ? String(item.updated_at) : undefined,
   };
@@ -110,6 +111,7 @@ export async function saveProposalRecord(
     ...normalized,
     workspace_id: workspaceId,
     user_id: userId,
+    datos: proposal.datos ?? null,
     updated_at: now,
   };
 

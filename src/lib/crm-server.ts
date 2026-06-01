@@ -91,6 +91,8 @@ function normalizeSettings(value: unknown): Settings {
     monthlyGoalUsd: Number.isFinite(monthlyGoalUsd) && monthlyGoalUsd >= 0
       ? monthlyGoalUsd
       : DEFAULT_SETTINGS.monthlyGoalUsd,
+    hideGoalAmount: settings.hideGoalAmount === true,
+    revenueHiddenByDefault: settings.revenueHiddenByDefault === true,
   };
 }
 
@@ -326,7 +328,7 @@ export async function handleCrmRequest(request: NextRequest) {
       const existingProposals = await listProposals(admin, workspaceId, sharedState);
       const isNewProposal = !existingProposals.some((item) => item.id === proposalId);
       const nextFollowUp = payload.proximo_seguimiento || (isNewProposal ? defaultFollowUpDate : null);
-      const saved = await saveProposalRecord(admin, { id: proposalId, cliente: payload.cliente || "", concepto: payload.concepto || "", monto_usd: payload.monto_usd === null || payload.monto_usd === "" ? null : Number(payload.monto_usd), fecha_envio: payload.fecha_envio || today.toISOString().slice(0, 10), proximo_seguimiento: nextFollowUp, estado: (["enviado", "en_negociacion", "aceptado", "rechazado", "vencido"].includes(payload.estado) ? payload.estado : "enviado") as Proposal["estado"], link_documento: payload.link_documento || null, notas: payload.notas || "", created_at: existingProposals.find((item) => item.id === proposalId)?.created_at }, workspaceId, user.id, sharedState);
+      const saved = await saveProposalRecord(admin, { id: proposalId, cliente: payload.cliente || "", concepto: payload.concepto || "", monto_usd: payload.monto_usd === null || payload.monto_usd === "" ? null : Number(payload.monto_usd), fecha_envio: payload.fecha_envio || today.toISOString().slice(0, 10), proximo_seguimiento: nextFollowUp, estado: (["enviado", "en_negociacion", "aceptado", "rechazado", "vencido"].includes(payload.estado) ? payload.estado : "enviado") as Proposal["estado"], link_documento: payload.link_documento || null, notas: payload.notas || "", datos: payload.datos ?? null, created_at: existingProposals.find((item) => item.id === proposalId)?.created_at }, workspaceId, user.id, sharedState);
       if (isNewProposal && nextFollowUp) {
         const currentEvents = normalizeArray<CalendarEvent>(sharedState.get("exp2_calendar"));
         const followUpEvent: CalendarEvent = { id: crypto.randomUUID(), title: `Seguimiento presupuesto - ${saved.cliente || "Cliente"}`, date: nextFollowUp, type: "seguimiento", completed: false, notes: `${saved.concepto || "Sin concepto"}${saved.monto_usd !== null ? ` - USD ${saved.monto_usd}` : ""}`, company: saved.cliente || "", created_at: today.toISOString() };
@@ -347,7 +349,7 @@ export async function handleCrmRequest(request: NextRequest) {
       const now = new Date().toISOString();
       const VALID_TIPOS = new Set(["bienvenida", "onboarding"]);
       const VALID_ESTADOS_DOC = new Set(["borrador", "enviado", "firmado"]);
-      const row = { id: docId, workspace_id: DEFAULT_WORKSPACE_ID, user_id: user.id, cliente: payload.cliente || "", empresa: payload.empresa || null, tipo: VALID_TIPOS.has(payload.tipo) ? payload.tipo : "bienvenida", fecha: payload.fecha || now.slice(0, 10), estado: VALID_ESTADOS_DOC.has(payload.estado) ? payload.estado : "borrador", notas: payload.notas || "", updated_at: now, created_at: payload.created_at || now };
+      const row = { id: docId, workspace_id: DEFAULT_WORKSPACE_ID, user_id: user.id, cliente: payload.cliente || "", empresa: payload.empresa || null, tipo: VALID_TIPOS.has(payload.tipo) ? payload.tipo : "bienvenida", fecha: payload.fecha || now.slice(0, 10), estado: VALID_ESTADOS_DOC.has(payload.estado) ? payload.estado : "borrador", notas: payload.notas || "", datos: payload.datos ?? null, updated_at: now, created_at: payload.created_at || now };
       const { error } = await admin.from("crm_onboarding_docs").upsert(row);
       if (error) return json({ error: error.message }, 500);
       return json({ ok: true });
