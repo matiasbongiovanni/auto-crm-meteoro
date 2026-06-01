@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCrm } from "@/components/crm/provider";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { AppHeader } from "@/components/layout/AppHeader";
+import { BottomNav } from "@/components/layout/BottomNav";
 import { Loader2 } from "lucide-react";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -33,7 +34,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="flex flex-1 flex-col min-w-0">
         <AppHeader />
-        <main className="flex-1 overflow-auto p-4 md:p-6">
+        <main className="flex-1 overflow-auto p-4 pb-24 md:p-6 md:pb-6">
           {loading ? (
             <div className="flex items-center justify-center h-48">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -43,6 +44,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           )}
         </main>
       </div>
+      <BottomNav />
     </div>
   );
 }

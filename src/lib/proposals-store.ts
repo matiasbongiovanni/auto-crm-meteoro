@@ -85,7 +85,8 @@ export async function listProposals(admin: any, workspaceId = DEFAULT_WORKSPACE_
       .eq("workspace_id", workspaceId)
       .order("proximo_seguimiento", { ascending: true, nullsFirst: false });
     if (error) throw error;
-    return mergeById(normalizeProposals(data || []), shared);
+    // crm_proposals wins over crm_state (secondary is overwritten by primary)
+    return mergeById(shared, normalizeProposals(data || []));
   } catch (error) {
     if (isMissingTableError(error)) return shared;
     throw error;
@@ -118,11 +119,16 @@ export async function saveProposalRecord(
   try {
     const { error } = await admin.from("crm_proposals").upsert(row);
     if (error) throw error;
+    // Remove from crm_state so the normalized table is the single source of truth
+    const current = sharedState ? normalizeProposals(sharedState.get(PROPOSALS_STATE_KEY)) : await readSharedProposals(admin, workspaceId);
+    if (current.some((item) => item.id === normalized.id)) {
+      await writeSharedProposals(admin, workspaceId, current.filter((item) => item.id !== normalized.id));
+    }
     return normalized;
   } catch (error) {
     if (!isMissingTableError(error)) throw error;
     const current = sharedState ? normalizeProposals(sharedState.get(PROPOSALS_STATE_KEY)) : await readSharedProposals(admin, workspaceId);
-    const next = mergeById([normalized], current.filter((item) => item.id !== normalized.id));
+    const next = mergeById(current.filter((item) => item.id !== normalized.id), [normalized]);
     await writeSharedProposals(admin, workspaceId, next);
     return normalized;
   }
@@ -135,12 +141,16 @@ export async function deleteProposalRecord(
   workspaceId = DEFAULT_WORKSPACE_ID,
   sharedState?: Map<string, unknown>,
 ) {
+  // Always clean from crm_state regardless of whether crm_proposals succeeds
+  const current = sharedState ? normalizeProposals(sharedState.get(PROPOSALS_STATE_KEY)) : await readSharedProposals(admin, workspaceId);
+  if (current.some((item) => item.id === id)) {
+    await writeSharedProposals(admin, workspaceId, current.filter((item) => item.id !== id));
+  }
+
   try {
     const { error } = await admin.from("crm_proposals").delete().eq("workspace_id", workspaceId).eq("id", id);
-    if (error) throw error;
+    if (error && !isMissingTableError(error)) throw error;
   } catch (error) {
     if (!isMissingTableError(error)) throw error;
-    const current = sharedState ? normalizeProposals(sharedState.get(PROPOSALS_STATE_KEY)) : await readSharedProposals(admin, workspaceId);
-    await writeSharedProposals(admin, workspaceId, current.filter((item) => item.id !== id));
   }
 }

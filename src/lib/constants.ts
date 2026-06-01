@@ -21,6 +21,8 @@ export const DEFAULT_SETTINGS = {
   dashboardScope: "30d",
   ceoNote: "",
   monthlyGoalUsd: 0,
+  hideGoalAmount: false,
+  revenueHiddenByDefault: false,
 } as const;
 
 // ─── Lead / Contact ────────────────────────────────────────────────────────────

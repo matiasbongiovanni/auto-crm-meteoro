@@ -1,18 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Check, Trash2, Building2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Check, Trash2, Building2 } from "lucide-react";
 import { useCrm } from "@/components/crm/provider";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { CalendarEvent, CalendarEventType, CompanyNote } from "@/types/crm";
+import { TaskMetrics } from "@/components/tareas/TaskMetrics";
+import { CalendarView } from "@/components/tareas/Calendar";
 
 const TYPE_CONFIG: Record<CalendarEventType, { label: string; color: string }> = {
   tarea: { label: "Tarea", color: "text-amber-400 bg-amber-400/10 border-amber-400/20" },
@@ -21,24 +22,6 @@ const TYPE_CONFIG: Record<CalendarEventType, { label: string; color: string }> =
   entrega: { label: "Entrega", color: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20" },
   cobro: { label: "Cobro", color: "text-rose-400 bg-rose-400/10 border-rose-400/20" },
 };
-
-const DAY_NAMES = ["Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do"];
-const MONTHS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-
-function buildCalendarGrid(year: number, month: number) {
-  const first = new Date(year, month, 1);
-  const days = new Date(year, month + 1, 0).getDate();
-  const offset = (first.getDay() + 6) % 7;
-  const grid: (number | null)[] = [];
-  for (let i = 0; i < offset; i++) grid.push(null);
-  for (let d = 1; d <= days; d++) grid.push(d);
-  while (grid.length % 7 !== 0) grid.push(null);
-  return grid;
-}
-
-function toDateStr(y: number, m: number, d: number) {
-  return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-}
 
 function EventForm({ initial, onSave, onClose, companies }: {
   initial?: Partial<CalendarEvent> & { date?: string };
@@ -123,18 +106,11 @@ function EventForm({ initial, onSave, onClose, companies }: {
 export default function TareasPage() {
   const { state, saveCalendarEvent, deleteCalendarEvent, saveCompanyNote, deleteCompanyNote } = useCrm();
   const today = new Date();
-  const [year, setYear] = useState(today.getFullYear());
-  const [month, setMonth] = useState(today.getMonth());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<CalendarEvent | null>(null);
 
-  const grid = buildCalendarGrid(year, month);
   const todayStr = today.toISOString().slice(0, 10);
-
-  function prevMonth() { if (month === 0) { setYear(y => y - 1); setMonth(11); } else setMonth(m => m - 1); }
-  function nextMonth() { if (month === 11) { setYear(y => y + 1); setMonth(0); } else setMonth(m => m + 1); }
-
   const companies = [...new Set(state.calendarEvents.map((e) => e.company).filter(Boolean) as string[])];
 
   async function handleToggle(event: CalendarEvent) {
@@ -151,6 +127,8 @@ export default function TareasPage() {
 
   return (
     <div className="space-y-4">
+      <TaskMetrics />
+
       <div className="flex justify-end">
         <Button size="sm" onClick={() => { setSelectedDate(todayStr); setOpen(true); }}
           className="bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5">
@@ -203,38 +181,13 @@ export default function TareasPage() {
 
         {/* Calendario */}
         <TabsContent value="calendario" className="mt-4">
-          <div className="metric-card rounded-xl p-4">
-            <div className="flex items-center justify-between mb-4">
-              <button onClick={prevMonth} className="p-1.5 rounded hover:bg-muted/50 text-muted-foreground hover:text-foreground">
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <p className="text-sm font-semibold">{MONTHS[month]} {year}</p>
-              <button onClick={nextMonth} className="p-1.5 rounded hover:bg-muted/50 text-muted-foreground hover:text-foreground">
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="grid grid-cols-7 gap-1 mb-2">
-              {DAY_NAMES.map((d) => <p key={d} className="text-center text-[10px] text-muted-foreground font-semibold py-1">{d}</p>)}
-            </div>
-            <div className="grid grid-cols-7 gap-1">
-              {grid.map((day, i) => {
-                if (!day) return <div key={i} />;
-                const dateStr = toDateStr(year, month, day);
-                const events = state.calendarEvents.filter((e) => e.date === dateStr);
-                const isToday = dateStr === todayStr;
-                return (
-                  <button key={dateStr} onClick={() => { setSelectedDate(dateStr); setOpen(true); }}
-                    className={cn("relative p-1.5 rounded text-center text-[12px] transition-colors hover:bg-primary/8",
-                      isToday ? "bg-primary/8 text-primary font-bold" : "text-foreground/70 hover:text-foreground")}>
-                    {day}
-                    {events.length > 0 && (
-                      <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-primary" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <CalendarView
+            events={state.calendarEvents}
+            onToggle={handleToggle}
+            onDelete={handleDelete}
+            onNewEvent={(date) => { setSelectedDate(date); setOpen(true); }}
+            onEdit={(e) => setEditing(e)}
+          />
         </TabsContent>
 
         {/* Notas por empresa */}

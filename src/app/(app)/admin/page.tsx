@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Shield, Plus, Trash2, Copy, Key, Users, Eye, EyeOff } from "lucide-react";
+import { Shield, Plus, Trash2, Copy, Key, Users, Eye, EyeOff, Settings } from "lucide-react";
 import { useCrm } from "@/components/crm/provider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/types/crm";
+import { AdminMetrics } from "@/components/admin/AdminMetrics";
+import { SettingsForm } from "@/components/admin/SettingsForm";
 
 const ROLE_CONFIG: Record<Role, { label: string; class: string }> = {
   ceo: { label: "CEO", class: "border-primary/30 text-primary" },
@@ -145,10 +147,12 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-5">
+      <AdminMetrics />
       <Tabs defaultValue="usuarios">
         <TabsList className="bg-muted/30 border border-border/40">
           <TabsTrigger value="usuarios" className="text-[12px]"><Users className="h-3.5 w-3.5 mr-1.5" />Usuarios</TabsTrigger>
           <TabsTrigger value="api-keys" className="text-[12px]"><Key className="h-3.5 w-3.5 mr-1.5" />API Keys</TabsTrigger>
+          <TabsTrigger value="configuracion" className="text-[12px]"><Settings className="h-3.5 w-3.5 mr-1.5" />Configuración</TabsTrigger>
         </TabsList>
 
         <TabsContent value="usuarios" className="mt-4 space-y-4">
@@ -245,6 +249,10 @@ export default function AdminPage() {
               <NewApiKeyForm onSave={handleCreateKey} onClose={handleKeyCreated} />
             </DialogContent>
           </Dialog>
+        </TabsContent>
+
+        <TabsContent value="configuracion" className="mt-4">
+          <SettingsForm />
         </TabsContent>
       </Tabs>
     </div>

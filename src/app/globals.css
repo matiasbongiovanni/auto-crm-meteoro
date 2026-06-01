@@ -49,65 +49,65 @@
 }
 
 /* ─── Meteoro CRM — Dark monocromo (negro/blanco) ────────────────────────── */
-/* Always dark. Primary = white. Estética Vercel/Linear. */
+/* Always dark. Primary = white. Negro puro neutro sin tinte. */
 
 :root,
 .dark {
   /* Backgrounds */
-  --background: #07070f;
-  --foreground: #fafafa;
+  --background: #0a0a0a;
+  --foreground: #f2f2f2;
 
   /* Cards / surfaces */
-  --card: #0d0d12;
-  --card-foreground: #fafafa;
+  --card: #111111;
+  --card-foreground: #f2f2f2;
 
   /* Popover / dropdown */
-  --popover: #0d0d12;
-  --popover-foreground: #fafafa;
+  --popover: #111111;
+  --popover-foreground: #f2f2f2;
 
   /* Primary — blanco (acción) */
-  --primary: #fafafa;
+  --primary: #f2f2f2;
   --primary-foreground: #0a0a0a;
 
   /* Secondary — superficie oscura neutra */
-  --secondary: #18181b;
-  --secondary-foreground: #a1a1aa;
+  --secondary: #1a1a1a;
+  --secondary-foreground: #a0a0a0;
 
   /* Muted */
-  --muted: #131316;
-  --muted-foreground: #71717a;
+  --muted: #141414;
+  --muted-foreground: #6b6b6b;
 
   /* Accent */
-  --accent: #1f1f23;
-  --accent-foreground: #fafafa;
+  --accent: #1e1e1e;
+  --accent-foreground: #f2f2f2;
 
   /* Destructive */
   --destructive: #ef4444;
 
   /* Borders */
-  --border: rgba(255, 255, 255, 0.07);
-  --input: rgba(255, 255, 255, 0.09);
-  --ring: #fafafa;
+  --border: rgba(255, 255, 255, 0.06);
+  --input: rgba(255, 255, 255, 0.08);
+  --ring: #f2f2f2;
 
   /* Charts — escala de grises */
-  --chart-1: #fafafa;
-  --chart-2: #a1a1aa;
-  --chart-3: #71717a;
-  --chart-4: #52525b;
-  --chart-5: #3f3f46;
+  --chart-1: #f2f2f2;
+  --chart-2: #a0a0a0;
+  --chart-3: #6b6b6b;
+  --chart-4: #4a4a4a;
+  --chart-5: #333333;
 
   /* Border radius */
   --radius: 0.5rem;
 
   /* Sidebar — superficie más profunda */
-  --sidebar: #050508;
-  --sidebar-foreground: #d4d4d8;
-  --sidebar-primary: #fafafa;
+  --sidebar: #080808;
+  --sidebar-foreground: #c8c8c8;
+  --sidebar-primary: #f2f2f2;
   --sidebar-primary-foreground: #0a0a0a;
-  --sidebar-accent: #0d0d12;
-  --sidebar-accent-foreground: #fafafa;
-  --sidebar-border: rgba(255, 255, 255, 0.05);
-  --sidebar-ring: #fafafa;
+  --sidebar-accent: #111111;
+  --sidebar-accent-foreground: #f2f2f2;
+  --sidebar-border: rgba(255, 255, 255, 0.04);
+  --sidebar-ring: #f2f2f2;
 
   /* Semántica — conservada para feedback de estado */
   --success: #34d399;
@@ -116,9 +116,9 @@
   --warning-foreground: #431407;
 
   /* Meteoro brand token (neutro) */
-  --meteoro-accent: #fafafa;
-  --meteoro-accent-dim: rgba(250, 250, 250, 0.08);
-  --meteoro-glow: 0 0 20px rgba(255, 255, 255, 0.08);
+  --meteoro-accent: #f2f2f2;
+  --meteoro-accent-dim: rgba(242, 242, 242, 0.06);
+  --meteoro-glow: 0 0 20px rgba(255, 255, 255, 0.06);
 }
 
 /* ─── Base styles ─────────────────────────────────────────────────────────── */
@@ -158,22 +158,22 @@
 
   /* Glassmorphic card */
   .glass-card {
-    background: rgba(13, 13, 18, 0.8);
-    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(17, 17, 17, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     backdrop-filter: blur(12px);
   }
 
   /* White glow on hover */
   .hover-glow:hover {
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15), 0 0 20px rgba(255, 255, 255, 0.05);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 0 24px rgba(255, 255, 255, 0.04);
     transition: box-shadow 0.2s ease;
   }
 
   /* Metric card */
   .metric-card {
-    background: linear-gradient(135deg, rgba(13, 13, 18, 0.9) 0%, rgba(20, 20, 24, 0.6) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    border-radius: calc(var(--radius) * 1.6);
+    background: #111111;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: calc(var(--radius) * 1.4);
   }
 
   /* Status dot */

@@ -13,12 +13,11 @@ import {
   Bot,
   MessageSquare,
   ShieldCheck,
+  Settings,
   LogOut,
-  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCrm } from "@/components/crm/provider";
-import { Button } from "@/components/ui/button";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -47,6 +46,28 @@ function roleMinRank(roleMin?: string): number {
   return 0;
 }
 
+function UserAvatar({ email, role }: { email?: string; role: string }) {
+  const initials = email
+    ? email.slice(0, 2).toUpperCase()
+    : "MT";
+
+  return (
+    <div className="flex items-center gap-3 px-4 py-4 border-b border-sidebar-border">
+      <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+        <span className="text-[11px] font-bold text-foreground/80">{initials}</span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[13px] font-semibold text-sidebar-foreground truncate leading-tight">
+          Matías Weschta
+        </p>
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-tight mt-0.5">
+          {role}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const { session, state, signOut } = useCrm();
@@ -62,22 +83,23 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="hidden md:flex md:w-56 lg:w-60 md:flex-col bg-sidebar border-r border-sidebar-border min-h-screen shrink-0">
+    <aside className="hidden md:flex md:w-52 lg:w-56 md:flex-col bg-sidebar border-r border-sidebar-border min-h-screen shrink-0">
       {/* Logo */}
-      <div className="flex h-14 items-center px-4 border-b border-sidebar-border">
-        <Link href="/dashboard" className="flex items-center gap-2.5">
+      <div className="flex h-12 items-center px-4 border-b border-sidebar-border">
+        <Link href="/dashboard" className="flex items-center">
           <Image
-            src="/brand/meteoro-isotipo.svg"
+            src="/brand/meteoro-negativo.png"
             alt="Meteoro"
-            width={24}
-            height={24}
-            className="shrink-0"
+            width={96}
+            height={28}
+            className="shrink-0 opacity-90"
+            style={{ objectFit: "contain" }}
           />
-          <span className="text-[15px] font-bold tracking-[-0.02em] text-foreground">
-            METEORO
-          </span>
         </Link>
       </div>
+
+      {/* User */}
+      <UserAvatar email={session?.user?.email} role={role} />
 
       {/* Nav */}
       <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
@@ -88,48 +110,39 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "group flex items-center gap-3 rounded-md px-3 py-2 text-[13px] font-medium transition-all duration-150",
+                "group flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] font-medium transition-all duration-100",
                 active
-                  ? "bg-white/8 text-foreground shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]"
-                  : "text-sidebar-foreground/60 hover:bg-[var(--sidebar-accent)] hover:text-sidebar-foreground",
+                  ? "bg-white/[0.07] text-foreground"
+                  : "text-sidebar-foreground/50 hover:bg-white/[0.04] hover:text-sidebar-foreground",
               )}
             >
               <item.icon
                 className={cn(
-                  "h-4 w-4 shrink-0 transition-colors",
-                  active ? "text-foreground" : "text-sidebar-foreground/40 group-hover:text-sidebar-foreground",
+                  "h-3.5 w-3.5 shrink-0",
+                  active ? "text-foreground" : "text-sidebar-foreground/30 group-hover:text-sidebar-foreground/60",
                 )}
               />
               <span className="truncate">{item.label}</span>
-              {active && (
-                <ChevronRight className="ml-auto h-3 w-3 text-foreground/40" />
-              )}
             </Link>
           );
         })}
       </nav>
 
-      {/* Footer: user + logout */}
-      <div className="px-2 py-3 border-t border-sidebar-border">
-        <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-sidebar-accent/40 mb-1">
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] text-sidebar-foreground/40 truncate label-muted">
-              {role.toUpperCase()}
-            </p>
-            <p className="text-[12px] text-sidebar-foreground/80 truncate font-medium">
-              {session?.user?.email || "—"}
-            </p>
-          </div>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start gap-2 text-[12px] text-sidebar-foreground/40 hover:text-destructive hover:bg-destructive/10 px-3"
+      {/* Footer: Settings + logout */}
+      <div className="px-2 pb-3 border-t border-sidebar-border pt-2 space-y-0.5">
+        <button
+          className="w-full flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] font-medium text-sidebar-foreground/50 hover:bg-white/[0.04] hover:text-sidebar-foreground transition-all duration-100"
+        >
+          <Settings className="h-3.5 w-3.5 text-sidebar-foreground/30" />
+          <span>Configuración</span>
+        </button>
+        <button
           onClick={() => signOut()}
+          className="w-full flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] font-medium text-sidebar-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-all duration-100"
         >
           <LogOut className="h-3.5 w-3.5" />
-          Cerrar sesión
-        </Button>
+          <span>Cerrar sesión</span>
+        </button>
       </div>
     </aside>
   );

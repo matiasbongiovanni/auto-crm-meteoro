@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { filterByMonth, monthKey, monthlySubscriptionCost, prevMonth, nextMonth, last24Months } from "@/lib/finance";
 import type { FinanceRow, Subscription, PendingPayment } from "@/types/crm";
+import { FinanceMetrics } from "@/components/dashboard/FinanceMetrics";
 
 const USD_TYPES = ["blue", "oficial", "mep", "ccl", "crypto"];
 const FLOW_KINDS_ING = ["mensualidad", "adelanto", "cobro_pendiente", "otro"];
@@ -170,29 +171,31 @@ function FinanceSection({ month, setMonth }: { month: string; setMonth: (m: stri
           {rows.length === 0 ? (
             <p className="px-4 py-6 text-sm text-muted-foreground text-center">Sin {label.toLowerCase()}</p>
           ) : (
-            <table className="w-full text-sm">
-              <tbody>
-                {rows.map((row) => (
-                  <tr key={row.id} className="border-b border-border/10 last:border-0 hover:bg-white/[0.01]">
-                    <td className="px-4 py-2.5">
-                      <p className="font-medium text-foreground/80">{row.concepto}</p>
-                      {row.persona && <p className="text-[11px] text-muted-foreground">{row.persona}</p>}
-                    </td>
-                    <td className="px-4 py-2.5 text-muted-foreground text-xs">{row.fecha}</td>
-                    <td className="px-4 py-2.5 text-right">
-                      <p className="font-semibold text-foreground/90">USD {row.usd?.toFixed(0) ?? "—"}</p>
-                      {row.ars != null && <p className="text-[10px] text-muted-foreground">ARS {row.ars.toLocaleString("es-AR")}</p>}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex gap-1 justify-end">
-                        <button onClick={() => setEditing({ row, kind })} className="p-1 text-muted-foreground hover:text-foreground"><Pencil className="h-3 w-3" /></button>
-                        <button onClick={async () => { try { await (kind === "ingreso" ? deleteIngreso : deleteEgreso)(row.id); toast.success("Eliminado"); } catch { toast.error("Error"); } }} className="p-1 text-muted-foreground hover:text-destructive"><Trash2 className="h-3 w-3" /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[400px]">
+                <tbody>
+                  {rows.map((row) => (
+                    <tr key={row.id} className="border-b border-border/10 last:border-0 hover:bg-white/[0.01]">
+                      <td className="px-4 py-2.5">
+                        <p className="font-medium text-foreground/80">{row.concepto}</p>
+                        {row.persona && <p className="text-[11px] text-muted-foreground">{row.persona}</p>}
+                      </td>
+                      <td className="px-4 py-2.5 text-muted-foreground text-xs whitespace-nowrap">{row.fecha}</td>
+                      <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                        <p className="font-semibold text-foreground/90">USD {row.usd?.toFixed(0) ?? "—"}</p>
+                        {row.ars != null && <p className="text-[10px] text-muted-foreground">ARS {row.ars.toLocaleString("es-AR")}</p>}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex gap-1 justify-end">
+                          <button onClick={() => setEditing({ row, kind })} className="p-1 text-muted-foreground hover:text-foreground"><Pencil className="h-3 w-3" /></button>
+                          <button onClick={async () => { try { await (kind === "ingreso" ? deleteIngreso : deleteEgreso)(row.id); toast.success("Eliminado"); } catch { toast.error("Error"); } }} className="p-1 text-muted-foreground hover:text-destructive"><Trash2 className="h-3 w-3" /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       ))}
@@ -335,6 +338,7 @@ export default function FinanzasPage() {
 
   return (
     <div className="space-y-6">
+      <FinanceMetrics />
       <Tabs defaultValue="finanzas">
         <TabsList className="bg-muted/30 border border-border/40">
           <TabsTrigger value="finanzas" className="text-[12px]">Ingresos / Egresos</TabsTrigger>

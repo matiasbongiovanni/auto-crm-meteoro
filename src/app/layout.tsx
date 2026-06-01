@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
+import { ServiceWorkerRegister } from "@/components/shared/ServiceWorkerRegister";
 
 const geistSans = Geist({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono", display: "swap" });
@@ -9,6 +10,18 @@ const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono"
 export const metadata: Metadata = {
   title: "Meteoro CRM",
   description: "Sistema de gestión de clientes, finanzas y agentes de Meteoro Agencia",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Meteoro CRM",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#080808",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -21,6 +34,7 @@ export default function RootLayout({
       <body className="min-h-full bg-background text-foreground antialiased" suppressHydrationWarning>
         {children}
         <Toaster theme="dark" position="top-right" />
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

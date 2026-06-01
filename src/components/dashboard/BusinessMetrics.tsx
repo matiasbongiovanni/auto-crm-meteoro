@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { TrendingUp, CreditCard, Clock, Kanban, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Metrics = {
@@ -19,18 +19,23 @@ type Metrics = {
 type Props = {
   metrics: Metrics;
   monthlyGoal: number;
+  defaultHidden?: boolean;
+  hideGoalAmount?: boolean;
 };
 
-function UsdValue({ amount, blur }: { amount: number; blur: boolean }) {
-  return (
-    <span className={cn("transition-all", blur && "blur-sm select-none")}>
-      USD {amount.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-    </span>
-  );
+function fmt(n: number, blur: boolean) {
+  const s = `USD ${n.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  return blur ? "••••••" : s;
 }
 
-export function BusinessMetrics({ metrics, monthlyGoal }: Props) {
-  const [blurred, setBlurred] = useState(false);
+function fmtCount(n: number, blur: boolean) {
+  if (blur) return "••";
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
+}
+
+export function BusinessMetrics({ metrics, monthlyGoal, defaultHidden, hideGoalAmount }: Props) {
+  const [blurred, setBlurred] = useState(defaultHidden ?? false);
 
   const goal = monthlyGoal || 0;
   const goalPct = goal > 0 ? Math.min((metrics.netRevenue / goal) * 100, 100) : 0;
@@ -38,39 +43,28 @@ export function BusinessMetrics({ metrics, monthlyGoal }: Props) {
   const cards = [
     {
       label: "Net Revenue",
-      value: metrics.netRevenue,
-      sub: `${metrics.totalIngresos >= 0 ? "+" : ""}USD ${metrics.totalIngresos.toFixed(0)} ingresos`,
-      icon: TrendingUp,
-      accent: "text-[var(--success)]",
-      bg: "bg-[var(--success)]/10",
-      isMoney: true,
+      value: fmt(metrics.netRevenue, blurred),
+      sub: `+USD ${metrics.totalIngresos.toFixed(0)} ingresos`,
     },
     {
       label: "MRR",
-      value: metrics.mrr,
+      value: fmt(metrics.mrr, blurred),
       sub: "Suscripciones activas",
-      icon: CreditCard,
-      accent: "text-primary",
-      bg: "bg-primary/5",
-      isMoney: true,
     },
     {
       label: "Por cobrar",
-      value: metrics.pendingTotal,
+      value: fmt(metrics.pendingTotal, blurred),
       sub: "Pagos pendientes",
-      icon: Clock,
-      accent: "text-[var(--warning)]",
-      bg: "bg-[var(--warning)]/10",
-      isMoney: true,
     },
     {
       label: "Pipeline",
-      value: metrics.pipelineValue,
-      sub: `${metrics.totalLeads} leads totales`,
-      icon: Kanban,
-      accent: "text-[var(--chart-4)]",
-      bg: "bg-[var(--chart-4)]/10",
-      isMoney: true,
+      value: fmt(metrics.pipelineValue, blurred),
+      sub: `${fmtCount(metrics.totalLeads, blurred)} leads totales`,
+    },
+    {
+      label: "Leads calientes",
+      value: fmtCount(metrics.leadsCaliente, blurred),
+      sub: `${fmtCount(metrics.leadsTibio, blurred)} tibios`,
     },
   ];
 
@@ -83,22 +77,25 @@ export function BusinessMetrics({ metrics, monthlyGoal }: Props) {
           className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
         >
           {blurred ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-          {blurred ? "Mostrar" : "Ocultar"} números
+          {blurred ? "Mostrar" : "Ocultar"}
         </button>
       </div>
 
       {/* Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {cards.map(({ label, value, sub, icon: Icon, accent, bg, isMoney }) => (
-          <div key={label} className="metric-card p-4 hover-glow group">
-            <div className="flex items-start justify-between mb-3">
-              <p className="label-muted">{label}</p>
-              <div className={cn("p-1.5 rounded-md", bg)}>
-                <Icon className={cn("h-3.5 w-3.5", accent)} />
-              </div>
-            </div>
-            <p className={cn("text-xl font-bold tracking-[-0.03em] mb-0.5", accent)}>
-              {isMoney ? <UsdValue amount={value} blur={blurred} /> : value}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        {cards.map(({ label, value, sub }) => (
+          <div
+            key={label}
+            className="metric-card px-4 py-4 hover-glow transition-all"
+          >
+            <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground mb-2">
+              {label}
+            </p>
+            <p className={cn(
+              "text-2xl font-bold tracking-[-0.03em] text-foreground leading-none mb-1",
+              blurred && "blur-sm select-none"
+            )}>
+              {value}
             </p>
             <p className="text-[11px] text-muted-foreground">{sub}</p>
           </div>
@@ -107,16 +104,20 @@ export function BusinessMetrics({ metrics, monthlyGoal }: Props) {
 
       {/* Goal progress */}
       {goal > 0 && (
-        <div className="glass-card rounded-xl p-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-medium text-foreground/80">Meta mensual</p>
+        <div className="metric-card px-4 py-3.5">
+          <div className="flex items-center justify-between mb-2.5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              Meta mensual
+            </p>
             <span className="text-[11px] text-muted-foreground">
-              {goalPct.toFixed(0)}% — USD {goal.toLocaleString("es-AR")}
+              {hideGoalAmount
+                ? `${goalPct.toFixed(0)}%`
+                : `${goalPct.toFixed(0)}% · USD ${goal.toLocaleString("es-AR")}`}
             </span>
           </div>
-          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+          <div className="h-1 bg-white/5 rounded-full overflow-hidden">
             <div
-              className="h-full rounded-full transition-all duration-500"
+              className="h-full rounded-full transition-all duration-700"
               style={{
                 width: `${goalPct}%`,
                 background: goalPct >= 100

@@ -102,18 +102,36 @@ FASE 0 ✓ completada:
 - Dashboard de negocio (BusinessMetrics + RevenueChart)
 - Login page
 
-FASE 0.5 ✓ completada (2026-05-31):
+FASE 0.5 ✓ completada (2026-05-31, actualizada 2026-06-01):
 - Mensajería: Meteoro Chat self-hosted embebido con SSO automático
 - SSO bridge server-side (src/lib/chatwoot.ts + /api/mensajeria/sso)
+- SSO: agente compartido (CHATWOOT_AGENT_USER_ID) — resolveUserIdByEmail eliminado (dead-code)
 - frame-ancestors configurado en el core para desarrollo
+- Branding operativo: BrandingController fijo (ActionController::API, sin PlatformController)
+- Ruta branding: PATCH /platform/api/v1/meteoro/branding (alineada con Meteoro Admin)
+- Env del core documentadas: FRAME_ANCESTORS, FRONTEND_URL, METEORO_ADMIN_API_KEY en .env.example + docker-compose.yaml
+- seed-instancia.sh: default URL corregido a :3008
+- ⚠️ Pendiente manual: `docker compose run --rm rails bundle exec rails db:migrate` (crea tabla meteoro_brandings)
+- ⚠️ Pendiente: completar CHATWOOT_PLATFORM_TOKEN + CHATWOOT_AGENT_USER_ID + CHATWOOT_DEFAULT_ACCOUNT_ID en .env.local (correr seed-instancia.sh)
 
 FASE 0.6 ✓ completada (2026-06-01):
 - Documentos: generador de presupuestos y cartas de bienvenida con plantillas HTML Meteoro
-- Editor dinámico por tipo (agregar/quitar ítems, fases, planes, métodos de pago, pasos, firmas)
-- Preview fiel en `<iframe srcDoc>` (fondo blanco / fondo negro según plantilla)
-- Export PDF vía `window.print()` del iframe + descarga `.html` autocontenido con logo embebido
-- Campo `datos jsonb` en `crm_proposals` y `crm_onboarding_docs`; migración en `supabase/migrations/2026-06-01-documentos-datos-jsonb.sql`
-- Archivos nuevos: `src/lib/documents/` (types, defaults, logo, render-presupuesto, render-bienvenida) + `src/components/documentos/` (document-preview, presupuesto-editor, bienvenida-editor)
-- ⚠️ Aplicar la migración SQL en Supabase antes de guardar documentos con datos ricos.
+- Editor dinámico por tipo
+- Export PDF vía `window.print()` + descarga `.html` autocontenido
+- Campo `datos jsonb` en `crm_proposals` y `crm_onboarding_docs`
+- ⚠️ Aplicar `supabase/migrations/2026-06-01-documentos-datos-jsonb.sql` en Supabase SQL Editor.
 
-FASE 1, 2, 3 pendientes (leads, pipeline, tareas, finanzas, agentes, admin)
+FASE 0.7 ✓ completada (2026-06-01):
+- **Settings**: flags `hideGoalAmount` y `revenueHiddenByDefault` en `Settings` type + `DEFAULT_SETTINGS` + `normalizeSettings`
+- **Dashboard**: `BusinessMetrics` acepta `defaultHidden` y `hideGoalAmount`; revenue oculto por defecto configurable desde Admin
+- **Admin → Configuración**: `SettingsForm` para editar meta, ocultar monto, revenue por defecto, nota CEO, scope
+- **Admin → Métricas**: `AdminMetrics` con conteo de usuarios por rol/estado y de API keys por scope/actividad
+- **Finanzas → Métricas**: `FinanceMetrics` con neto mes vs anterior, MRR, proyección anual, cobrado/por cobrar, top clientes, categorías, ticket promedio, YTD, gráfico evolución 6 meses
+- **Tareas → Métricas**: `TaskMetrics` con activas/vencidas/urgentes/completadas y resumen del día
+- **Tareas → Calendario**: `CalendarView` mejorado (chips por evento, panel de día seleccionado, botón Hoy)
+- **PWA**: `manifest.ts` + `public/sw.js` + `ServiceWorkerRegister` + íconos 192/512/maskable/apple-touch en `public/icons/`
+- **Branding**: `public/brand/meteoro-negativo.png` en Sidebar y MobileNav (logo real de Meteoro)
+- **MobileNav**: actualizado con NAV_ITEMS reales, role guard, logo Meteoro
+- **Migración SQL** (pendiente confirmación): `supabase/migrations/2026-06-01-consolidar-datos.sql`
+
+FASE 1, 2, 3 pendientes (leads, pipeline, agentes)

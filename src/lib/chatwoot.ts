@@ -34,20 +34,3 @@ export async function getSsoLoginUrl(userId: number | string): Promise<string> {
   return url;
 }
 
-export async function resolveUserIdByEmail(email: string): Promise<number> {
-  const base = chatwootBaseUrl();
-  const token = platformToken();
-
-  const res = await fetch(`${base}/platform/api/v1/users?page=1`, {
-    headers: { api_access_token: token },
-    cache: "no-store",
-  });
-
-  if (!res.ok) throw new Error(`Platform API error ${res.status}`);
-
-  const data = (await res.json()) as Array<{ id: number; email: string }> | { payload?: Array<{ id: number; email: string }> };
-  const users = Array.isArray(data) ? data : (data?.payload ?? []);
-  const match = users.find((u) => u.email === email);
-  if (!match) throw new Error(`Usuario ${email} no encontrado en Meteoro Chat`);
-  return match.id;
-}

@@ -153,49 +153,88 @@ export default function LeadsPage() {
           <p className="text-muted-foreground text-sm">Sin leads{filter !== "todos" ? ` ${filter}s` : ""}.</p>
         </div>
       ) : (
-        <div className="metric-card rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border/40">
-                {["Lead", "Teléfono", "Temperatura", "Estado", "Acción", "Fase", ""].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left label-muted font-medium">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((lead) => {
-                const tc = TEMP_CONFIG[lead.temperatura || "frio"];
-                return (
-                  <tr key={lead.id} className="border-b border-border/20 last:border-0 hover:bg-white/[0.02] transition-colors">
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-foreground/90">{lead.nombre}</p>
+        <>
+          {/* Mobile: cards */}
+          <div className="md:hidden space-y-2">
+            {filtered.map((lead) => {
+              const tc = TEMP_CONFIG[lead.temperatura || "frio"];
+              return (
+                <div key={lead.id} className="metric-card rounded-xl px-4 py-3.5 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-foreground/90 text-sm">{lead.nombre}</p>
                       {lead.empresa && <p className="text-[11px] text-muted-foreground">{lead.empresa}</p>}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">{lead.telefono || "—"}</td>
-                    <td className="px-4 py-3">
-                      <Badge variant="outline" className={cn("gap-1 text-[10px] font-semibold border", tc.class)}>
-                        {tc.icon} {lead.temperatura || "frio"}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground capitalize">{lead.estado}</td>
-                    <td className="px-4 py-3 text-muted-foreground max-w-[180px] truncate">{lead.accion || "—"}</td>
-                    <td className="px-4 py-3 text-muted-foreground">F{lead.fase}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => setEditing(lead)} className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded">
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        <button onClick={() => handleDelete(lead.id)} className="text-muted-foreground hover:text-destructive transition-colors p-1 rounded">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button onClick={() => setEditing(lead)} className="text-muted-foreground hover:text-foreground p-1 rounded">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button onClick={() => handleDelete(lead.id)} className="text-muted-foreground hover:text-destructive p-1 rounded">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline" className={cn("gap-1 text-[10px] font-semibold border", tc.class)}>
+                      {tc.icon} {lead.temperatura || "frio"}
+                    </Badge>
+                    <span className="text-[11px] text-muted-foreground capitalize">{lead.estado}</span>
+                    <span className="text-[11px] text-muted-foreground">F{lead.fase}</span>
+                    {lead.telefono && <span className="text-[11px] text-muted-foreground">{lead.telefono}</span>}
+                  </div>
+                  {lead.accion && (
+                    <p className="text-[11px] text-muted-foreground truncate">{lead.accion}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop: table */}
+          <div className="hidden md:block metric-card rounded-xl overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/40">
+                  {["Lead", "Teléfono", "Temperatura", "Estado", "Acción", "Fase", ""].map((h) => (
+                    <th key={h} className="px-4 py-3 text-left label-muted font-medium">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((lead) => {
+                  const tc = TEMP_CONFIG[lead.temperatura || "frio"];
+                  return (
+                    <tr key={lead.id} className="border-b border-border/20 last:border-0 hover:bg-white/[0.02] transition-colors">
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-foreground/90">{lead.nombre}</p>
+                        {lead.empresa && <p className="text-[11px] text-muted-foreground">{lead.empresa}</p>}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">{lead.telefono || "—"}</td>
+                      <td className="px-4 py-3">
+                        <Badge variant="outline" className={cn("gap-1 text-[10px] font-semibold border", tc.class)}>
+                          {tc.icon} {lead.temperatura || "frio"}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground capitalize">{lead.estado}</td>
+                      <td className="px-4 py-3 text-muted-foreground max-w-[180px] truncate">{lead.accion || "—"}</td>
+                      <td className="px-4 py-3 text-muted-foreground">F{lead.fase}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-2">
+                          <button onClick={() => setEditing(lead)} className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded">
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button onClick={() => handleDelete(lead.id)} className="text-muted-foreground hover:text-destructive transition-colors p-1 rounded">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>

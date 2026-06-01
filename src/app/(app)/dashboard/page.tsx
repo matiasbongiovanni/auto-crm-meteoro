@@ -49,20 +49,20 @@ export default function DashboardPage() {
   }, [state, currentMonth]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header row */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-heading text-xl font-bold text-foreground tracking-[-0.03em]">
+          <h2 className="text-[18px] font-bold text-foreground tracking-[-0.03em]">
             Overview
           </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-[11px] text-muted-foreground mt-0.5">
             {new Date().toLocaleDateString("es-AR", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
           </p>
         </div>
 
         {/* Scope selector */}
-        <div className="flex items-center bg-muted/30 rounded-lg p-0.5 border border-border/40">
+        <div className="flex items-center bg-white/[0.03] rounded-lg p-0.5 border border-border/30">
           {SCOPES.map(({ value, label }) => (
             <button
               key={value}
@@ -70,8 +70,8 @@ export default function DashboardPage() {
               className={cn(
                 "px-3 py-1.5 text-[11px] font-semibold rounded-md transition-all",
                 scope === value
-                  ? "bg-primary/8 text-primary shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
+                  ? "bg-white/[0.07] text-foreground"
+                  : "text-muted-foreground hover:text-foreground/70",
               )}
             >
               {label}
@@ -88,28 +88,40 @@ export default function DashboardPage() {
       )}
 
       {/* Metrics grid */}
-      <BusinessMetrics metrics={metrics} monthlyGoal={state.settings.monthlyGoalUsd} />
+      <BusinessMetrics
+        metrics={metrics}
+        monthlyGoal={state.settings.monthlyGoalUsd}
+        defaultHidden={state.settings.revenueHiddenByDefault}
+        hideGoalAmount={state.settings.hideGoalAmount}
+      />
 
       {/* Revenue chart */}
       <RevenueChart ingresos={state.ingresos} egresos={state.egresos} subscriptions={state.subscriptions} />
 
       {/* Pipeline + Leads summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {/* Leads */}
         <div className="metric-card p-5">
-          <p className="label-muted mb-3">Estado de Leads</p>
-          <div className="space-y-2">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground mb-4">
+            Estado de Leads
+          </p>
+          <div className="space-y-3">
             {[
-              { label: "Calientes", count: metrics.leadsCaliente, color: "bg-red-400" },
-              { label: "Tibios", count: metrics.leadsTibio, color: "bg-orange-400" },
-              { label: "Total", count: metrics.totalLeads, color: "bg-primary" },
-            ].map(({ label, count, color }) => (
-              <div key={label} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className={cn("status-dot", color)} />
-                  <span className="text-sm text-muted-foreground">{label}</span>
+              { label: "Calientes", count: metrics.leadsCaliente, bar: "bg-red-400/70" },
+              { label: "Tibios", count: metrics.leadsTibio, bar: "bg-orange-400/70" },
+              { label: "Total", count: metrics.totalLeads, bar: "bg-white/20" },
+            ].map(({ label, count, bar }) => (
+              <div key={label} className="flex items-center gap-3">
+                <span className="text-[12px] text-muted-foreground w-16 shrink-0">{label}</span>
+                <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
+                  <div
+                    className={cn("h-full rounded-full", bar)}
+                    style={{ width: metrics.totalLeads > 0 ? `${(count / metrics.totalLeads) * 100}%` : "0%" }}
+                  />
                 </div>
-                <span className="text-sm font-semibold text-foreground">{count}</span>
+                <span className="text-[12px] font-semibold text-foreground/80 w-6 text-right shrink-0">
+                  {count}
+                </span>
               </div>
             ))}
           </div>
@@ -117,21 +129,23 @@ export default function DashboardPage() {
 
         {/* Pending payments */}
         <div className="metric-card p-5">
-          <p className="label-muted mb-3">Pagos Pendientes</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground mb-4">
+            Pagos Pendientes
+          </p>
           {state.pendingPayments.filter((p) => p.estado !== "cobrado").length === 0 ? (
-            <p className="text-sm text-muted-foreground">Sin pagos pendientes</p>
+            <p className="text-[13px] text-muted-foreground">Sin pagos pendientes</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {state.pendingPayments
                 .filter((p) => p.estado !== "cobrado")
                 .slice(0, 4)
                 .map((p) => (
                   <div key={p.id} className="flex items-center justify-between">
                     <div className="min-w-0">
-                      <p className="text-sm text-foreground/80 truncate">{p.cliente}</p>
+                      <p className="text-[13px] text-foreground/80 truncate">{p.cliente}</p>
                       <p className="text-[11px] text-muted-foreground truncate">{p.concepto}</p>
                     </div>
-                    <span className="text-sm font-semibold text-[var(--warning)] ml-3 shrink-0">
+                    <span className="text-[13px] font-semibold text-[var(--warning)] ml-3 shrink-0">
                       USD {p.monto_usd?.toFixed(0) ?? "—"}
                     </span>
                   </div>
