@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generador de Documentos — Meteoro</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Inter',sans-serif;background:#1a1a1a;display:flex;min-height:100vh}
+
+    /* layout */
+    #panel-form{width:390px;min-width:330px;background:#111;color:#e8e8e8;display:flex;flex-direction:column;border-right:1px solid #252525;position:sticky;top:0;height:100vh;overflow:hidden}
+    #panel-preview{flex:1;padding:40px 32px;display:flex;flex-direction:column;align-items:center;background:#2a2a2a;overflow-y:auto}
+
+    /* form panel */
+    .form-brand{background:#000;padding:20px 22px;border-bottom:1px solid #222;display:flex;align-items:center;gap:14px;flex-shrink:0}
+    .form-brand img{height:32px}
+    .form-brand-text{display:flex;flex-direction:column}
+    .fb-name{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:20px;color:#fff;letter-spacing:.04em;line-height:1}
+    .fb-sub{font-size:9px;color:#666;letter-spacing:.16em;text-transform:uppercase;margin-top:3px}
+
+    .form-body{padding:18px 20px 16px;flex:1;overflow-y:auto}
+    .form-section{margin-bottom:22px}
+    .form-section-title{font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#555;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #1e1e1e}
+    .form-group{margin-bottom:9px}
+    label{display:block;font-size:11px;color:#888;margin-bottom:3px;font-weight:500}
+    input[type=text],input[type=date],input[type=number],textarea,select{width:100%;background:#181818;border:1px solid #2a2a2a;color:#e8e8e8;padding:7px 10px;font-size:12px;font-family:'Inter',sans-serif;border-radius:4px;outline:none;transition:border-color .15s}
+    input:focus,textarea:focus,select:focus{border-color:#444}
+    textarea{resize:vertical;min-height:60px}
+    select option{background:#181818}
+    .form-row{display:flex;gap:8px}
+    .form-row .form-group{flex:1}
+    .form-check{display:flex;align-items:center;gap:8px;font-size:11px;color:#888;margin-top:6px}
+    .form-check input{width:14px;height:14px;accent-color:#fff;flex-shrink:0}
+
+    /* type selector */
+    .tipo-selector{display:flex;gap:6px;margin-bottom:20px}
+    .tipo-btn{flex:1;padding:9px 6px;background:#181818;border:1px solid #2a2a2a;color:#666;font-size:11px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;border-radius:4px;transition:all .15s;text-align:center;letter-spacing:.04em}
+    .tipo-btn.active{background:#fff;color:#000;border-color:#fff}
+    .tipo-btn:hover:not(.active){border-color:#444;color:#aaa}
+
+    /* dynamic blocks */
+    .block-list{display:flex;flex-direction:column;gap:6px}
+    .block-item{background:#181818;border:1px solid #2a2a2a;border-radius:4px;padding:8px}
+    .block-item-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+    .block-num{font-size:9px;font-weight:700;color:#444;letter-spacing:.1em;text-transform:uppercase}
+    .btn-rm{background:none;border:none;color:#444;cursor:pointer;font-size:16px;line-height:1;padding:0 2px;transition:color .15s}
+    .btn-rm:hover{color:#e55}
+    .btn-add{width:100%;padding:7px;background:#181818;border:1px dashed #2e2e2e;color:#555;font-size:11px;font-family:'Inter',sans-serif;cursor:pointer;border-radius:4px;margin-top:6px;transition:all .15s}
+    .btn-add:hover{border-color:#444;color:#999}
+
+    /* footer */
+    .form-footer{padding:14px 20px;background:#111;border-top:1px solid #1e1e1e;flex-shrink:0}
+    .btn-pdf{width:100%;padding:12px;background:#fff;color:#000;border:none;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:14px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;border-radius:4px;transition:background .15s}
+    .btn-pdf:hover{background:#ddd}
+    .footer-hint{margin-top:7px;font-size:10px;color:#555;text-align:center}
+
+    /* ========== DOCUMENTO ========== */
+    .doc{width:794px;min-height:1123px;background:#fff;color:#000;box-shadow:0 8px 40px rgba(0,0,0,.5);font-family:'Inter',sans-serif;display:flex;flex-direction:column}
+    .doc-scale{width:794px;display:flex;flex-direction:column;transform-origin:top left}
+
+    /* header negro */
+    .doc-header{background:#000;padding:24px 48px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+    .doc-header img{height:64px}
+    .doc-header-right{text-align:right}
+    .dh-label{font-size:9px;color:#666;letter-spacing:.14em;text-transform:uppercase;font-weight:500}
+    .dh-title{font-size:14px;font-weight:600;color:#fff;margin-top:2px}
+
+    /* banda título */
+    .doc-title-band{background:#f5f5f5;border-bottom:3px solid #000;padding:28px 48px}
+    .doc-badge{font-size:9px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:#aaa;margin-bottom:6px}
+    .doc-ptitle{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:38px;color:#000;line-height:1.05;letter-spacing:.01em}
+    .doc-tagline{font-size:11px;color:#bbb;margin-top:6px;font-style:italic}
+
+    /* meta row */
+    .doc-meta{padding:16px 48px;display:flex;gap:32px;border-bottom:1px solid #ececec;flex-wrap:wrap}
+    .doc-meta-item{display:flex;flex-direction:column}
+    .doc-meta-lbl{font-size:8px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#bbb;margin-bottom:3px}
+    .doc-meta-val{font-size:13px;font-weight:600;color:#000}
+
+    /* body */
+    .doc-body{padding:28px 48px;flex:1}
+
+    /* secciones del body */
+    .doc-section{margin-bottom:26px;break-inside:avoid;page-break-inside:avoid}
+    .doc-section-page-break{break-before:page;page-break-before:always}
+    .doc-section-title{font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#000;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #000}
+    .doc-section-content{font-size:13px;color:#333;line-height:1.8;white-space:pre-wrap}
+
+    /* bloque de equipo */
+    .team-block{display:flex;gap:28px;flex-wrap:wrap;margin-top:4px;break-inside:avoid;page-break-inside:avoid}
+    .team-member{background:#f9f9f9;border:1px solid #ececec;border-radius:4px;padding:12px 16px;min-width:180px}
+    .team-member-name{font-size:13px;font-weight:700;color:#000}
+    .team-member-role{font-size:10px;color:#999;letter-spacing:.08em;text-transform:uppercase;margin-top:1px}
+    .team-member-contact{margin-top:8px}
+    .team-member-contact span{display:block;font-size:11px;color:#555;margin-top:2px}
+
+    /* portal block */
+    .portal-block{background:#f5f5f5;border-left:3px solid #000;padding:16px 20px;border-radius:0 4px 4px 0;margin-top:4px;break-inside:avoid;page-break-inside:avoid}
+    .portal-note{font-size:11px;color:#888;font-style:italic;margin-bottom:10px}
+    .portal-row{display:flex;gap:4px;align-items:baseline;margin-top:6px}
+    .portal-key{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#bbb;min-width:80px}
+    .portal-val{font-size:13px;font-weight:600;color:#000}
+
+    /* próximos pasos */
+    .steps-list{margin-top:4px;padding-left:0;list-style:none}
+    .steps-list li{display:flex;gap:12px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#333;break-inside:avoid;page-break-inside:avoid}
+    .steps-list li:last-child{border-bottom:none}
+    .step-num{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:18px;color:#000;min-width:24px;line-height:1.2}
+
+    /* entregables */
+    .deliverables-list{list-style:none;padding:0;margin-top:4px}
+    .deliverables-list li{display:flex;gap:10px;align-items:flex-start;padding:6px 0;font-size:13px;color:#333;border-bottom:1px solid #f5f5f5;break-inside:avoid;page-break-inside:avoid}
+    .deliverables-list li:last-child{border-bottom:none}
+    .deliverable-num{font-size:14px;font-weight:700;color:#000;margin-top:1px;min-width:18px;line-height:1.2}
+
+    /* planes */
+    .plans-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:4px}
+    .plan-card{background:#f7f7f7;border:1px solid #ececec;border-radius:10px;padding:14px 16px;break-inside:avoid;page-break-inside:avoid}
+    .plan-badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:999px;background:#000;color:#fff;font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:10px}
+    .plan-title{font-size:16px;font-weight:700;color:#000;line-height:1.1}
+    .plan-hours{font-size:11px;font-weight:700;color:#666;margin-top:5px;text-transform:uppercase;letter-spacing:.08em}
+    .plan-desc{font-size:13px;color:#333;line-height:1.6;margin-top:10px}
+
+    /* tabla de fases */
+    .phases-table{width:100%;border-collapse:collapse;margin-top:4px}
+    .phases-table thead tr{background:#000;color:#fff}
+    .phases-table thead th{padding:8px 12px;font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;text-align:left}
+    .phases-table tbody tr{border-bottom:1px solid #f0f0f0;break-inside:avoid;page-break-inside:avoid}
+    .phases-table tbody tr:last-child{border-bottom:none}
+    .phases-table tbody td{padding:10px 12px;font-size:12px;vertical-align:top}
+    .phase-name{font-weight:600;color:#000}
+    .phase-desc{font-size:11px;color:#888;margin-top:2px}
+    .phase-badge{display:inline-block;padding:2px 8px;border-radius:2px;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+    .phase-badge.pendiente{background:#f0f0f0;color:#888}
+    .phase-badge.en-curso{background:#000;color:#fff}
+    .phase-badge.completado{background:#1a1a1a;color:#ccc}
+
+    /* firma */
+    .doc-signature{padding:24px 48px;border-top:1px solid #ececec;display:grid;grid-template-columns:1fr 1fr;gap:40px;break-inside:avoid;page-break-inside:avoid}
+    .sig-block{}
+    .sig-label{font-size:9px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#bbb;margin-bottom:24px}
+    .sig-line{border-bottom:1px solid #000;width:100%;margin-bottom:8px}
+    .sig-name{font-size:13px;font-weight:600;color:#000}
+    .sig-role{font-size:10px;color:#999;margin-top:2px}
+    .sig-date{font-size:10px;color:#bbb;margin-top:4px}
+
+    /* footer */
+    .doc-footer{background:#000;padding:14px 48px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;break-inside:avoid;page-break-inside:avoid}
+    .doc-footer-contacts{display:flex;gap:22px}
+    .dfc-item{display:flex;flex-direction:column}
+    .dfc-lbl{font-size:8px;color:#555;letter-spacing:.14em;text-transform:uppercase;font-weight:600;margin-bottom:2px}
+    .dfc-val{font-size:11px;color:#ccc;font-weight:500}
+    .doc-footer-logo img{height:36px;opacity:.6}
+
+    /* sección dinámica en el doc */
+    .dyn-section{margin-bottom:20px}
+    .dyn-section-title{font-size:11px;font-weight:700;color:#000;margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em}
+    .dyn-section-content{font-size:13px;color:#333;line-height:1.75;white-space:pre-wrap}
+
+    /* compromisos */
+    .compromisos-list{list-style:none;padding:0;margin-top:4px}
+    .compromisos-list li{display:flex;gap:10px;align-items:flex-start;padding:6px 0;font-size:13px;color:#333;border-bottom:1px solid #f5f5f5}
+    .compromisos-list li:last-child{border-bottom:none}
+    .compromiso-check{font-size:14px;margin-top:1px}
+
+    /* print */
+    @media print{
+      body{background:#fff!important}
+      #panel-form{display:none!important}
+      #panel-preview{padding:0!important;background:#fff!important;align-items:flex-start!important;justify-content:flex-start!important;overflow:visible!important}
+      .doc{box-shadow:none!important;width:794px!important;min-height:auto!important;height:auto!important;overflow:visible!important;display:block!important}
+      .doc-scale{width:794px!important;display:block!important;transform:none!important}
+      .doc-section-page-break{break-before:page;page-break-before:always}
+      @page{margin:12mm;size:A4}
+    }
+    @media print{
+      #panel-preview{width:794px!important}
+      .doc-body{flex:none!important}
+    }
+  </style>
+</head>
+<body>
+
+<aside id="panel-form">
+  <div class="form-brand">
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAfQAAAH0CAYAAADL1t+KAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAA2ZpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wTU09Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9tbS8iIHhtbG5zOnN0UmVmPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VSZWYjIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtcE1NOk9yaWdpbmFsRG9jdW1lbnRJRD0ieG1wLmRpZDpCNUQ0NzIwRTgyMkFGMDExQjg5QjgyNDJDMjUzNEQ5QyIgeG1wTU06RG9jdW1lbnRJRD0ieG1wLmRpZDpEREQ5N0FGRTJBODMxMUYwOEI2MEE2QkVDM0IwRkQwOCIgeG1wTU06SW5zdGFuY2VJRD0ieG1wLmlpZDpEREQ5N0FGRDJBODMxMUYwOEI2MEE2QkVDM0IwRkQwOCIgeG1wOkNyZWF0b3JUb29sPSJBZG9iZSBQaG90b3Nob3AgQ1M2IChXaW5kb3dzKSI+IDx4bXBNTTpEZXJpdmVkRnJvbSBzdFJlZjppbnN0YW5jZUlEPSJ4bXAuaWlkOjg5NTE0REFEODIyQUYwMTFCNkUxOUJBNDc4OTE5MDA4IiBzdFJlZjpkb2N1bWVudElEPSJ4bXAuZGlkOkI1RDQ3MjBFODIyQUYwMTFCODlCODI0MkMyNTM0RDlDIi8+IDwvcmRmOkRlc2NyaXB0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" alt="Meteoro">
+    <div class="form-brand-text">
+      <span class="fb-name">Meteoro</span>
+      <span class="fb-sub">Generador de Documentos</span>
+    </div>
+  </div>
+
+  <div class="form-body">
+
+    <!-- Selector de tipo -->
+    <div class="form-section">
+      <div class="form-section-title">Tipo de documento</div>
+      <div class="tipo-selector">
+        <button class="tipo-btn active" onclick="setTipo('bienvenida',this)">Bienvenida</button>
+        <button class="tipo-btn" onclick="setTipo('onboarding',this)">Onboarding</button>
+      </div>
+    </div>
+
+    <!-- Datos del cliente (siempre visible) -->
+    <div class="form-section">
+      <div class="form-section-title">Cliente</div>
+      <div class="form-group">
+        <label>Nombre del cliente</label>
+        <input type="text" id="f-cliente" placeholder="Ej: Dr. Guillermo Valenzuela" oninput="up()">
+      </div>
+      <div class="form-group">
+        <label>Empresa / Organización</label>
+        <input type="text" id="f-empresa" placeholder="Ej: DentalQuality" oninput="up()">
+      </div>
+      <div class="form-group">
+        <label>Fecha del documento</label>
+        <input type="date" id="f-fecha" oninput="up()">
+      </div>
+    </div>
+
+    <!-- BIENVENIDA: secciones específicas -->
+    <div id="sec-bienvenida">
+      <div class="form-section">
+        <div class="form-section-title">Mensaje de bienvenida</div>
+        <label class="form-check">
+          <input type="checkbox" id="f-bienvenida-msg-show" checked oninput="up()">
+          <span>Mostrar mensaje de bienvenida</span>
+        </label>
+        <div class="form-group">
+          <textarea id="f-bienvenida-msg" rows="4" placeholder="Escribí el mensaje personalizado de bienvenida..." oninput="up()"></textarea>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Tu equipo en Meteoro</div>
+        <label class="form-check">
+          <input type="checkbox" id="f-team-show" checked oninput="up()">
+          <span>Mostrar bloque del equipo</span>
+        </label>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Portal de clientes</div>
+        <label class="form-check">
+          <input type="checkbox" id="f-portal-show" checked oninput="up()">
+          <span>Mostrar portal de clientes</span>
+        </label>
+        <div class="form-group">
+          <label>URL del portal</label>
+          <input type="text" id="f-portal-url" placeholder="Ej: portal.meteoro.com.ar/clientes" oninput="up()">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Usuario</label>
+            <input type="text" id="f-portal-user" placeholder="usuario@email.com" oninput="up()">
+          </div>
+          <div class="form-group">
+            <label>Contraseña temporal</label>
+            <input type="text" id="f-portal-pass" placeholder="Temp1234!" oninput="up()">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Próximos pasos</div>
+        <label class="form-check">
+          <input type="checkbox" id="f-pasos-show" checked oninput="up()">
+          <span>Mostrar próximos pasos</span>
+        </label>
+        <p style="font-size:10px;color:#666;margin-bottom:8px">Un paso por línea. Se numeran automáticamente.</p>
+        <div class="form-group">
+          <textarea id="f-pasos" rows="5" placeholder="Reunión de onboarding (45 min)&#10;Configuración del sistema&#10;Prueba del agente con casos reales&#10;Ajustes y optimización" oninput="up()"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- ONBOARDING: secciones específicas -->
+    <div id="sec-onboarding" style="display:none">
+      <div class="form-section">
+        <div class="form-section-title">Responsables</div>
+        <label class="form-check">
+          <input type="checkbox" id="f-resp-show" checked oninput="up()">
+          <span>Mostrar responsables y fechas</span>
+        </label>
+        <div class="form-group">
+          <label>Responsable cliente</label>
+          <input type="text" id="f-resp-cliente" placeholder="Nombre del responsable" oninput="up()">
+        </div>
+        <div class="form-group">
+          <label>Responsable Meteoro</label>
+          <input type="text" id="f-resp-meteoro" value="Matías Bongiovanni" oninput="up()">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Fecha de inicio</label>
+            <input type="date" id="f-inicio" oninput="up()">
+          </div>
+          <div class="form-group">
+            <label>Entrega estimada</label>
+            <input type="date" id="f-entrega" oninput="up()">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Secciones de documentación</div>
+        <label class="form-check">
+          <input type="checkbox" id="f-secciones-show" checked oninput="up()">
+          <span>Mostrar secciones de documentación</span>
+        </label>
+        <p style="font-size:10px;color:#666;margin-bottom:8px">Accesos, credenciales, datos del sistema, etc.</p>
+        <div class="block-list" id="secciones-list"></div>
+        <button class="btn-add" onclick="addSeccion()">+ Agregar sección</button>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Fases del proyecto</div>
+        <label class="form-check">
+          <input type="checkbox" id="f-fases-show" checked oninput="up()">
+          <span>Mostrar fases del proyecto</span>
+        </label>
+        <div class="block-list" id="fases-list"></div>
+        <button class="btn-add" onclick="addFase()">+ Agregar fase</button>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Entregables del proyecto</div>
+        <label class="form-check">
+          <input type="checkbox" id="f-entregables-show" checked oninput="up()">
+          <span>Mostrar entregables</span>
+        </label>
+        <p style="font-size:10px;color:#666;margin-bottom:8px">Un entregable por línea.</p>
+        <div class="form-group">
+          <textarea id="f-entregables" rows="4" placeholder="Landing page funcional&#10;Flujo de onboarding listo&#10;Documentación de accesos&#10;Capacitación al equipo" oninput="up()"></textarea>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Compromisos mutuos</div>
+        <label class="form-check">
+          <input type="checkbox" id="f-compromisos-show" checked oninput="up()">
+          <span>Mostrar compromisos mutuos</span>
+        </label>
+        <p style="font-size:10px;color:#666;margin-bottom:8px">Un compromiso por línea.</p>
+        <div class="form-group">
+          <textarea id="f-compromisos" rows="5" placeholder="Meteoro entregará actualizaciones semanales de avance&#10;El cliente proveerá acceso a los sistemas en las primeras 48h&#10;Reunión de revisión quincenal" oninput="up()"></textarea>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">SLA y soporte</div>
+        <label class="form-check">
+          <input type="checkbox" id="f-sla-show" checked oninput="up()">
+          <span>Mostrar SLA y soporte</span>
+        </label>
+        <div class="form-group">
+          <textarea id="f-sla" rows="4" placeholder="Tiempo de respuesta: hasta 24h hábiles&#10;Canal principal: WhatsApp +54 9 3472 548379&#10;Email: contacto@meteoro.com.ar&#10;Soporte de emergencias: WhatsApp" oninput="up()"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Firma (siempre visible) -->
+    <div class="form-section">
+      <div class="form-section-title">Firma</div>
+      <div class="form-group">
+        <label>Firmante por Meteoro</label>
+        <input type="text" id="f-firma-meteoro" value="Matías Bongiovanni" oninput="up()">
+      </div>
+      <div class="form-group">
+        <label>Cargo</label>
+        <input type="text" id="f-firma-cargo" value="CEO & Fundador — Meteoro" oninput="up()">
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Preparado por</div>
+      <div class="form-group">
+        <input type="text" id="f-prep" value="Matías Bongiovanni — Meteoro" oninput="up()">
+      </div>
+    </div>
+
+  </div>
+
+  <div class="form-footer">
+    <button class="btn-pdf" onclick="printFit()">Descargar PDF</button>
+    <button class="btn-pdf" style="background:#222;color:#fff;margin-top:6px" onclick="saveTocrm()">Guardar en CRM</button>
+    <div class="footer-hint">Solo se imprime el documento — el panel no aparece</div>
+  </div>
+</aside>
+
+<main id="panel-preview">
+  <div class="doc" id="doc"></div>
+</main>
+
+<script>
+const LOGO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAfQAAAH0CAYAAADL1t+KAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAA2ZpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wTU09Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9tbS8iIHhtbG5zOnN0UmVmPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VSZWYjIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtcE1NOk9yaWdpbmFsRG9jdW1lbnRJRD0ieG1wLmRpZDpCNUQ0NzIwRTgyMkFGMDExQjg5QjgyNDJDMjUzNEQ5QyIgeG1wTU06RG9jdW1lbnRJRD0ieG1wLmRpZDpEREQ5N0FGRTJBODMxMUYwOEI2MEE2QkVDM0IwRkQwOCIgeG1wTU06SW5zdGFuY2VJRD0ieG1wLmlpZDpEREQ5N0FGRDJBODMxMUYwOEI2MEE2QkVDM0IwRkQwOCIgeG1wOkNyZWF0b3JUb29sPSJBZG9iZSBQaG90b3Nob3AgQ1M2IChXaW5kb3dzKSI+IDx4bXBNTTpEZXJpdmVkRnJvbSBzdFJlZjppbnN0YW5jZUlEPSJ4bXAuaWlkOjg5NTE0REFEODIyQUYwMTFCNkUxOUJBNDc4OTE5MDA4IiBzdFJlZjpkb2N1bWVudElEPSJ4bXAuZGlkOkI1RDQ3MjBFODIyQUYwMTFCODlCODI0MkMyNTM0RDlDIi8+IDwvcmRmOkRlc2NyaXB0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";
+
+let tipo = "bienvenida";
+let secciones = [{ titulo: "Credenciales de acceso", contenido: "" }];
+let fases = [
+  { nombre: "Kick-off y configuración inicial", duracion: "3 días", estado: "en-curso", desc: "" },
+  { nombre: "Integración de sistemas", duracion: "5 días", estado: "pendiente", desc: "" },
+  { nombre: "Pruebas y ajustes", duracion: "3 días", estado: "pendiente", desc: "" },
+  { nombre: "Go-live y seguimiento", duracion: "7 días", estado: "pendiente", desc: "" }
+];
+
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;") }
+function gv(id){ const e=document.getElementById(id); return e?e.value.trim():"" }
+function today(){ return new Date().toISOString().slice(0,10) }
+function fmtDate(iso){ if(!iso)return "—"; const [y,m,d]=iso.split("-"); return d+"/"+m+"/"+y }
+
+function setTipo(t, btn){
+  tipo = t;
+  document.querySelectorAll(".tipo-btn").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  document.getElementById("sec-bienvenida").style.display = t==="bienvenida"?"block":"none";
+  document.getElementById("sec-onboarding").style.display = t==="onboarding"?"block":"none";
+  up();
+}
+
+// ---- Secciones dinámicas ----
+function renderSeccionesList(){
+  const container = document.getElementById("secciones-list");
+  container.innerHTML = secciones.map((s,i)=>`
+    <div class="block-item">
+      <div class="block-item-header">
+        <span class="block-num">Sección ${i+1}</span>
+        <button class="btn-rm" onclick="removeSeccion(${i})">×</button>
+      </div>
+      <div class="form-group">
+        <label>Título de la sección</label>
+        <input type="text" value="${esc(s.titulo)}" placeholder="Ej: Accesos a Chatwoot" oninput="secciones[${i}].titulo=this.value;up()">
+      </div>
+      <div class="form-group">
+        <label>Contenido</label>
+        <textarea rows="3" placeholder="URL, usuario, contraseña, API keys, notas..." oninput="secciones[${i}].contenido=this.value;up()">${esc(s.contenido)}</textarea>
+      </div>
+    </div>`).join("");
+}
+function addSeccion(){ secciones.push({titulo:"",contenido:""}); renderSeccionesList(); up() }
+function removeSeccion(i){ secciones.splice(i,1); renderSeccionesList(); up() }
+
+// ---- Fases dinámicas ----
+const ESTADOS_FASE = ["pendiente","en-curso","completado"];
+function renderFasesList(){
+  const container = document.getElementById("fases-list");
+  container.innerHTML = fases.map((f,i)=>`
+    <div class="block-item">
+      <div class="block-item-header">
+        <span class="block-num">Fase ${i+1}</span>
+        <button class="btn-rm" onclick="removeFase(${i})">×</button>
+      </div>
+      <div class="form-group">
+        <label>Nombre de la fase</label>
+        <input type="text" value="${esc(f.nombre)}" placeholder="Ej: Configuración inicial" oninput="fases[${i}].nombre=this.value;up()">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Duración estimada</label>
+          <input type="text" value="${esc(f.duracion)}" placeholder="Ej: 5 días hábiles" oninput="fases[${i}].duracion=this.value;up()">
+        </div>
+        <div class="form-group">
+          <label>Estado</label>
+          <select onchange="fases[${i}].estado=this.value;up()">
+            ${ESTADOS_FASE.map(e=>`<option value="${e}"${f.estado===e?" selected":""}>${e.replace("-"," ")}</option>`).join("")}
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Descripción (opcional)</label>
+        <textarea rows="2" placeholder="Detalle de actividades..." oninput="fases[${i}].desc=this.value;up()">${esc(f.desc||"")}</textarea>
+      </div>
+    </div>`).join("");
+}
+function addFase(){ fases.push({nombre:"",duracion:"",estado:"pendiente",desc:""}); renderFasesList(); up() }
+function removeFase(i){ fases.splice(i,1); renderFasesList(); up() }
+
+// ---- Firma ----
+function firmaHTML(lado, nombre, cargo){
+  return `
+  <div class="sig-block">
+    <div class="sig-label">${esc(lado)}</div>
+    <div class="sig-line"></div>
+    <div class="sig-name">${esc(nombre||"—")}</div>
+    <div class="sig-role">${esc(cargo||"")}</div>
+    <div class="sig-date">Fecha: _____ / _____ / _________</div>
+  </div>`
+}
+
+// ---- Render bienvenida ----
+function renderBienvenida(){
+  const cliente = gv("f-cliente")||"Cliente";
+  const empresa = gv("f-empresa");
+  const fecha = gv("f-fecha")||today();
+  const msg = gv("f-bienvenida-msg")||"Queremos darte la bienvenida a Meteoro y agradecerte la confianza que depositaste en nosotros. Estamos emocionados de trabajar juntos y comprometidos con el éxito de tu proyecto.";
+  const portalUrl = gv("f-portal-url")||"portal.meteoro.com.ar/clientes";
+  const showWelcomeMessage = document.getElementById("f-bienvenida-msg-show")?.checked ?? true;
+  const showTeam = document.getElementById("f-team-show")?.checked ?? true;
+  const showPortal = document.getElementById("f-portal-show")?.checked ?? true;
+  const showSteps = document.getElementById("f-pasos-show")?.checked ?? true;
+  const portalUser = gv("f-portal-user")||"—";
+  const portalPass = gv("f-portal-pass")||"—";
+  const pasosRaw = gv("f-pasos")||"Reunión de onboarding (45 min)\nConfiguración del sistema\nPrueba con casos reales\nAjustes y optimización";
+  const pasos = pasosRaw.split("\n").filter(p=>p.trim());
+  const firmaMeteoro = gv("f-firma-meteoro")||"Matías Bongiovanni";
+  const firmaCargo = gv("f-firma-cargo")||"CEO & Fundador — Meteoro";
+
+  return `
+  <div class="doc-scale">
+  <div class="doc-header">
+    <img src="${LOGO}" alt="Meteoro">
+    <div class="doc-header-right">
+      <div class="dh-label">Fecha</div>
+      <div class="dh-title">${fmtDate(fecha)}</div>
+    </div>
+  </div>
+
+  <div class="doc-title-band">
+    <div class="doc-badge">Carta de Bienvenida</div>
+    <div class="doc-ptitle">Bienvenido/a,<br>${esc(cliente)}</div>
+    ${empresa?`<div class="doc-tagline">${esc(empresa)}</div>`:""}
+  </div>
+
+  <div class="doc-body">
+    ${showWelcomeMessage ? `
+    <div class="doc-section">
+      <div class="doc-section-title">Mensaje de bienvenida</div>
+      <div class="doc-section-content">${esc(msg)}</div>
+    </div>` : ""}
+
+    ${showTeam ? `
+    <div class="doc-section">
+      <div class="doc-section-title">Tu equipo en Meteoro</div>
+      <div class="team-block">
+        <div class="team-member">
+          <div class="team-member-name">Matías Bongiovanni</div>
+          <div class="team-member-role">CEO & Fundador</div>
+          <div class="team-member-contact">
+            <span>WhatsApp: +54 9 3472 548379</span>
+            <span>Email: contacto@meteoro.com.ar</span>
+            <span>Horario: Lun–Vie 9:00–19:00 ART</span>
+          </div>
+        </div>
+      </div>
+    </div>` : ""}
+
+    ${showPortal ? `
+    <div class="doc-section">
+      <div class="doc-section-title">Portal de clientes</div>
+      <div class="portal-block">
+        <div class="portal-note">Tu portal está en desarrollo activo. Próximamente podrás ver métricas, conversaciones y el estado de tu sistema en tiempo real desde aquí.</div>
+        <div class="portal-row"><span class="portal-key">URL</span><span class="portal-val">${esc(portalUrl)}</span></div>
+        <div class="portal-row"><span class="portal-key">Usuario</span><span class="portal-val">${esc(portalUser)}</span></div>
+        <div class="portal-row"><span class="portal-key">Contraseña</span><span class="portal-val">${esc(portalPass)}</span></div>
+      </div>
+    </div>` : ""}
+
+    ${showSteps ? `
+    <div class="doc-section">
+      <div class="doc-section-title">Próximos pasos</div>
+      <ol class="steps-list">
+        ${pasos.map((p,i)=>`<li><span class="step-num">${i+1}</span><span>${esc(p.trim())}</span></li>`).join("")}
+      </ol>
+    </div>` : ""}
+  </div>
+
+  <div class="doc-signature">
+    ${firmaHTML("Por Meteoro Agencia", firmaMeteoro, firmaCargo)}
+    ${firmaHTML("Por "+esc(empresa||"el cliente"), esc(cliente), esc(empresa))}
+  </div>
+
+  <div class="doc-footer">
+    <div class="doc-footer-contacts">
+      <div class="dfc-item"><span class="dfc-lbl">WhatsApp</span><span class="dfc-val">+54 9 3472 548379</span></div>
+      <div class="dfc-item"><span class="dfc-lbl">Email</span><span class="dfc-val">contacto@meteoro.com.ar</span></div>
+      <div class="dfc-item"><span class="dfc-lbl">Web</span><span class="dfc-val">meteoro.com.ar</span></div>
+    </div>
+    <div class="doc-footer-logo"><img src="${LOGO}" alt="Meteoro"></div>
+  </div>
+  </div>`;
+}
+
+// ---- Render onboarding ----
+function renderOnboarding(){
+  const cliente = gv("f-cliente")||"Cliente";
+  const empresa = gv("f-empresa");
+  const fecha = gv("f-fecha")||today();
+  const respCliente = gv("f-resp-cliente")||"—";
+  const respMeteoro = gv("f-resp-meteoro")||"Matías Bongiovanni";
+  const inicio = gv("f-inicio")||"—";
+  const entrega = gv("f-entrega")||"—";
+  const entregables = gv("f-entregables")||"";
+  const compromisos = gv("f-compromisos")||"";
+  const sla = gv("f-sla")||"";
+  const showResp = document.getElementById("f-resp-show")?.checked ?? true;
+  const showSecciones = document.getElementById("f-secciones-show")?.checked ?? true;
+  const showFases = document.getElementById("f-fases-show")?.checked ?? true;
+  const showEntregables = document.getElementById("f-entregables-show")?.checked ?? true;
+  const showCompromisos = document.getElementById("f-compromisos-show")?.checked ?? true;
+  const showSla = document.getElementById("f-sla-show")?.checked ?? true;
+  const firmaMeteoro = gv("f-firma-meteoro")||"Matías Bongiovanni";
+  const firmaCargo = gv("f-firma-cargo")||"CEO & Fundador — Meteoro";
+
+  const seccionesHTML = secciones.filter(s=>s.titulo||s.contenido).map(s=>`
+    <div class="dyn-section">
+      <div class="dyn-section-title">${esc(s.titulo||"Sin título")}</div>
+      <div class="dyn-section-content">${esc(s.contenido||"—")}</div>
+    </div>`).join("");
+
+  const fasesHTML = fases.length ? `
+    <table class="phases-table">
+      <thead><tr><th>Fase</th><th>Duración estimada</th><th>Estado</th></tr></thead>
+      <tbody>
+        ${fases.map(f=>`
+        <tr>
+          <td><div class="phase-name">${esc(f.nombre||"—")}</div>${f.desc?`<div class="phase-desc">${esc(f.desc)}</div>`:""}</td>
+          <td>${esc(f.duracion||"—")}</td>
+          <td><span class="phase-badge ${f.estado}">${(f.estado||"").replace("-"," ")}</span></td>
+        </tr>`).join("")}
+      </tbody>
+    </table>` : "<p style=\"font-size:13px;color:#bbb\">No se agregaron fases.</p>";
+
+  const entregablesHTML = entregables
+    ? `<ul class="deliverables-list">${entregables.split("\n").filter(item=>item.trim()).map((item,index)=>`<li><span class="deliverable-num">${index+1}</span><span>${esc(item.trim())}</span></li>`).join("")}</ul>`
+    : '<p style="font-size:13px;color:#bbb">Sin entregables definidos.</p>';
+
+  const compromisosHTML = compromisos
+    ? `<ul class="compromisos-list">${compromisos.split("\n").filter(c=>c.trim()).map(c=>`<li><span class="compromiso-check">✓</span><span>${esc(c.trim())}</span></li>`).join("")}</ul>`
+    : '<p style="font-size:13px;color:#bbb">Sin compromisos definidos.</p>';
+
+  const slaHTML = sla
+    ? `<div class="doc-section-content">${esc(sla)}</div>`
+    : '<p style="font-size:13px;color:#bbb">Sin SLA definido.</p>';
+
+  return `
+  <div class="doc-scale">
+  <div class="doc-header">
+    <img src="${LOGO}" alt="Meteoro">
+    <div class="doc-header-right">
+      <div class="dh-label">Documento de</div>
+      <div class="dh-title">Onboarding</div>
+    </div>
+  </div>
+
+  <div class="doc-title-band">
+    <div class="doc-badge">Onboarding</div>
+    <div class="doc-ptitle">${esc(empresa||cliente)}</div>
+    ${empresa&&cliente!==empresa?`<div class="doc-tagline">Responsable: ${esc(cliente)}</div>`:""}
+  </div>
+
+  <div class="doc-meta">
+    ${showResp ? `
+    <div class="doc-meta-item"><div class="doc-meta-lbl">Responsable cliente</div><div class="doc-meta-val">${esc(respCliente)}</div></div>
+    <div class="doc-meta-item"><div class="doc-meta-lbl">Responsable Meteoro</div><div class="doc-meta-val">${esc(respMeteoro)}</div></div>
+    <div class="doc-meta-item"><div class="doc-meta-lbl">Fecha de inicio</div><div class="doc-meta-val">${fmtDate(inicio)}</div></div>
+    <div class="doc-meta-item"><div class="doc-meta-lbl">Entrega estimada</div><div class="doc-meta-val">${fmtDate(entrega)}</div></div>` : ""}
+    <div class="doc-meta-item"><div class="doc-meta-lbl">Documento</div><div class="doc-meta-val">${fmtDate(fecha)}</div></div>
+  </div>
+
+  <div class="doc-body">
+    ${showSecciones && seccionesHTML ? `
+    <div class="doc-section">
+      <div class="doc-section-title">Datos y accesos del proyecto</div>
+      ${seccionesHTML}
+    </div>` : ""}
+
+    ${showFases ? `
+    <div class="doc-section">
+      <div class="doc-section-title">Fases del desarrollo</div>
+      ${fasesHTML}
+    </div>` : ""}
+
+    ${showEntregables ? `
+    <div class="doc-section">
+      <div class="doc-section-title">Entregables del proyecto</div>
+      ${entregablesHTML}
+    </div>` : ""}
+
+    ${showCompromisos ? `
+    <div class="doc-section doc-section-page-break">
+      <div class="doc-section-title">Compromisos mutuos</div>
+      ${compromisosHTML}
+    </div>` : ""}
+
+    ${showSla ? `
+    <div class="doc-section">
+      <div class="doc-section-title">Soporte y SLA</div>
+      ${slaHTML}
+    </div>` : ""}
+  </div>
+
+  <div class="doc-signature">
+    ${firmaHTML("Por Meteoro Agencia", firmaMeteoro, firmaCargo)}
+    ${firmaHTML("Por "+esc(empresa||"el cliente"), esc(cliente), esc(empresa))}
+  </div>
+
+  <div class="doc-footer">
+    <div class="doc-footer-contacts">
+      <div class="dfc-item"><span class="dfc-lbl">WhatsApp</span><span class="dfc-val">+54 9 3472 548379</span></div>
+      <div class="dfc-item"><span class="dfc-lbl">Email</span><span class="dfc-val">contacto@meteoro.com.ar</span></div>
+      <div class="dfc-item"><span class="dfc-lbl">Web</span><span class="dfc-val">meteoro.com.ar</span></div>
+    </div>
+    <div class="doc-footer-logo"><img src="${LOGO}" alt="Meteoro"></div>
+  </div>
+  </div>`;
+}
+
+function up(){
+  const inner = tipo==="bienvenida" ? renderBienvenida() : renderOnboarding();
+  document.getElementById("doc").innerHTML = inner;
+  const cli = gv("f-cliente")||"Documento";
+  const emp = gv("f-empresa");
+  document.title = (tipo==="bienvenida"?"Bienvenida":"Onboarding") + " — " + (emp||cli) + " — Meteoro";
+}
+
+window.onload = function(){
+  const p = new URLSearchParams(location.search);
+  if(p.get("cliente")) document.getElementById("f-cliente").value = p.get("cliente");
+  if(p.get("empresa")) document.getElementById("f-empresa").value = p.get("empresa");
+  if(p.get("tipo")){
+    const t = p.get("tipo");
+    const btn = document.querySelector(`.tipo-btn[onclick*="${t}"]`);
+    if(btn) setTipo(t, btn);
+  }
+  document.getElementById("f-fecha").value = today();
+  document.getElementById("f-inicio").value = today();
+  renderSeccionesList();
+  renderFasesList();
+  up();
+};
+
+function printFit() {
+  const doc = document.getElementById('doc');
+  const page = doc.querySelector('.doc-scale');
+
+  if (page) {
+    page.style.transform = '';
+    page.style.transformOrigin = '';
+    page.style.width = '';
+  }
+
+  doc.style.width = '';
+  doc.style.height = '';
+  doc.style.overflow = '';
+  window.print();
+}
+
+function saveTocrm() {
+  const payload = {
+    tipo: tipo,
+    cliente: gv('f-cliente') || '',
+    empresa: gv('f-empresa') || '',
+    fecha: gv('f-fecha') || today(),
+  };
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'meteoro-onboarding-saved', payload }, '*');
+    }
+  } catch(e) {}
+}
+</script>
+</body>
+</html>
