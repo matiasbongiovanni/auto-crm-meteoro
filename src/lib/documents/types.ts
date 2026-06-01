@@ -1,9 +1,9 @@
 // Tipos de datos para los documentos generados con las plantillas Meteoro.
 
 export type Footer = {
-  whatsapp: string;
   email: string;
-  web: string;
+  telefono: string;
+  instagram: string;
 };
 
 // ─── Presupuesto / Cotización ────────────────────────────────────────────────

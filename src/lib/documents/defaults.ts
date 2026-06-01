@@ -1,9 +1,9 @@
 import type { BienvenidaData, OnboardingData, PresupuestoData } from "./types";
 
 const DEFAULT_FOOTER = {
-  whatsapp: "+54 9 3472 54-8379",
-  email: "contacto@meteoro.com.ar",
-  web: "meteoro.com.ar",
+  email: "contacto@meteoro.com",
+  telefono: "+54 9 3472 54-8379",
+  instagram: "@meteoroar",
 };
 
 export function defaultPresupuesto(cliente = "", proyecto = ""): PresupuestoData {
