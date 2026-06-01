@@ -1,90 +1,96 @@
+// Tipos de datos para los documentos generados con las plantillas Meteoro.
+
 export type Footer = {
+  whatsapp: string;
   email: string;
-  telefono: string;
-  instagram: string;
+  web: string;
 };
 
-export type Fase = {
-  numero: number;
-  titulo: string;
+// ─── Presupuesto / Cotización ────────────────────────────────────────────────
+
+export type ItemCotizacion = {
+  nombre: string;
   descripcion: string;
-};
-
-export type Item = {
-  nombre: string;
-  detalle: string;
   cantidad: number;
-  precioUnit: number;
-};
-
-export type PlanFeature = string;
-
-export type Plan = {
-  nombre: string;
   precio: number;
-  periodo: string;
-  premium: boolean;
-  features: PlanFeature[];
 };
 
-export type MetodoPagoFila = {
-  label: string;
-  valor: string;
-};
-
-export type MetodoPago = {
-  titulo: string;
-  filas: MetodoPagoFila[];
+export type PlanMensual = {
+  nombre: string;
+  descripcion: string; // líneas separadas por \n
+  precio: number;
 };
 
 export type PresupuestoData = {
-  header: { label: string; cliente: string };
-  titulo: { cotizacionLabel: string; titulo: string; tagline: string };
-  meta: { fecha: string; cliente: string; preparadoPor: string; moneda: string };
-  fasesTitulo: string;
-  fases: Fase[];
-  propuestaTitulo: string;
-  items: Item[];
-  mostrarIva: boolean;
-  ivaPct: number;
-  planesTitulo: string;
-  planes: Plan[];
-  metodosTitulo: string;
-  metodosPago: MetodoPago[];
+  cliente: string;
+  proyecto: string;
+  numero: string;
+  fecha: string;
+  moneda: "ARS" | "USD" | "EUR";
+  validezDias: number;
+  incluyeIva: boolean;
+  items: ItemCotizacion[];
+  planes: PlanMensual[];
+  includePlanes: boolean;
   notas: string;
-  validez: string;
+  preparadoPor: string;
   footer: Footer;
 };
 
-export type Contacto = {
-  label: string;
-  valor: string;
-};
-
-export type Paso = {
-  numero: number;
-  texto: string;
-};
-
-export type Firma = {
-  empresa: string;
-  nombre: string;
-  rol: string;
-  fecha: string;
-};
+// ─── Bienvenida ──────────────────────────────────────────────────────────────
 
 export type BienvenidaData = {
-  header: { label: string; cliente: string };
-  titulo: { fecha: string; titulo: string };
-  mensaje: { saludo: string; cuerpo: string };
-  equipo: {
-    titulo: string;
-    nombre: string;
-    rol: string;
-    contactos: Contacto[];
-  };
-  pasosTitulo: string;
-  pasos: Paso[];
-  firmas: Firma[];
+  cliente: string;
+  empresa: string;
+  fecha: string;
+  mensaje: string;
+  showMensaje: boolean;
+  showEquipo: boolean;
+  showPortal: boolean;
+  portalUrl: string;
+  portalUser: string;
+  portalPass: string;
+  showPasos: boolean;
+  pasos: string; // líneas separadas por \n
+  firmaMeteoro: string;
+  firmaCargo: string;
+  footer: Footer;
+};
+
+// ─── Onboarding ──────────────────────────────────────────────────────────────
+
+export type SeccionOnboarding = {
+  titulo: string;
+  contenido: string;
+};
+
+export type FaseOnboarding = {
+  nombre: string;
+  duracion: string;
+  estado: "pendiente" | "en-curso" | "completado";
+  desc: string;
+};
+
+export type OnboardingData = {
+  cliente: string;
+  empresa: string;
+  fecha: string;
+  respCliente: string;
+  respMeteoro: string;
+  fechaInicio: string;
+  fechaEntrega: string;
+  showResp: boolean;
+  showSecciones: boolean;
+  secciones: SeccionOnboarding[];
+  showFases: boolean;
+  fases: FaseOnboarding[];
+  showEntregables: boolean;
+  entregables: string; // líneas separadas por \n
+  showCompromisos: boolean;
+  compromisos: string; // líneas separadas por \n
+  showSla: boolean;
+  sla: string;
+  firmaMeteoro: string;
+  firmaCargo: string;
   footer: Footer;
 };

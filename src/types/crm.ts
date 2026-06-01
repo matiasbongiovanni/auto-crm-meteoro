@@ -163,6 +163,7 @@ export type Proposal = {
   updated_at?: string;
 };
 
+
 export type OnboardingDocStatus = "borrador" | "enviado" | "firmado";
 export type OnboardingDocTipo = "bienvenida" | "onboarding";
 
@@ -174,7 +175,7 @@ export type OnboardingDoc = {
   fecha: string;
   estado: OnboardingDocStatus;
   notas?: string;
-  datos?: import("@/lib/documents/types").BienvenidaData | null;
+  datos?: import("@/lib/documents/types").BienvenidaData | import("@/lib/documents/types").OnboardingData | null;
   created_at?: string;
   updated_at?: string;
 };

@@ -12,9 +12,9 @@ import { cn } from "@/lib/utils";
 import { PresupuestoEditor } from "@/components/documentos/presupuesto-editor";
 import { BienvenidaEditor } from "@/components/documentos/bienvenida-editor";
 import { DocumentPreview } from "@/components/documentos/document-preview";
-import { defaultPresupuesto, defaultBienvenida } from "@/lib/documents/defaults";
+import { defaultPresupuesto, defaultBienvenida, defaultOnboarding } from "@/lib/documents/defaults";
 import type { Proposal, ProposalStatus, OnboardingDoc } from "@/types/crm";
-import type { PresupuestoData, BienvenidaData } from "@/lib/documents/types";
+import type { PresupuestoData, BienvenidaData, OnboardingData } from "@/lib/documents/types";
 
 const PROPOSAL_ESTADOS: ProposalStatus[] = ["enviado", "en_negociacion", "aceptado", "rechazado", "vencido"];
 const ESTADO_CONFIG: Record<ProposalStatus, string> = {
@@ -167,14 +167,15 @@ export default function DocumentosPage() {
             </DialogContent>
           </Dialog>
 
-          {previewOnb && (
-            <DocumentPreview
-              tipo="bienvenida"
-              data={(previewOnb.datos as BienvenidaData | null | undefined) ?? defaultBienvenida(previewOnb.cliente, previewOnb.empresa ?? undefined)}
-              open={!!previewOnb}
-              onClose={() => setPreviewOnb(null)}
-            />
-          )}
+          {previewOnb && (() => {
+            const isOnboarding = previewOnb.tipo === "onboarding";
+            const data = isOnboarding
+              ? ((previewOnb.datos as OnboardingData | null | undefined) ?? defaultOnboarding(previewOnb.cliente, previewOnb.empresa ?? undefined))
+              : ((previewOnb.datos as BienvenidaData | null | undefined) ?? defaultBienvenida(previewOnb.cliente, previewOnb.empresa ?? undefined));
+            return isOnboarding
+              ? <DocumentPreview tipo="onboarding" data={data as OnboardingData} open={!!previewOnb} onClose={() => setPreviewOnb(null)} />
+              : <DocumentPreview tipo="bienvenida" data={data as BienvenidaData} open={!!previewOnb} onClose={() => setPreviewOnb(null)} />;
+          })()}
         </TabsContent>
 
         {/* Planes */}

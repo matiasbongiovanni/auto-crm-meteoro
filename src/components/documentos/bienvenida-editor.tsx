@@ -9,8 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { DocumentPreview } from "./document-preview";
-import { defaultBienvenida } from "@/lib/documents/defaults";
-import type { BienvenidaData, Paso, Firma, Contacto } from "@/lib/documents/types";
+import { defaultBienvenida, defaultOnboarding } from "@/lib/documents/defaults";
+import type { BienvenidaData, OnboardingData, SeccionOnboarding, FaseOnboarding } from "@/lib/documents/types";
 import type { OnboardingDoc } from "@/types/crm";
 
 type Props = {
@@ -25,61 +25,69 @@ export function BienvenidaEditor({ doc, clienteDefault = "", onSave, onClose }: 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [tipo, setTipo] = useState<OnboardingDoc["tipo"]>(doc?.tipo ?? "bienvenida");
   const [estado, setEstado] = useState<OnboardingDoc["estado"]>(doc?.estado ?? "borrador");
-  const [notas, setNotas] = useState(doc?.notas ?? "");
-  const [data, setData] = useState<BienvenidaData>(
-    (doc?.datos as BienvenidaData | null | undefined) ??
-      defaultBienvenida(clienteDefault || doc?.cliente || "", doc?.empresa ?? undefined)
+  const [notasCRM, setNotasCRM] = useState(doc?.notas ?? "");
+
+  const cliente = clienteDefault || doc?.cliente || "";
+  const empresa = doc?.empresa ?? "";
+
+  const [bienvenidaData, setBienvenidaData] = useState<BienvenidaData>(
+    tipo === "bienvenida" && doc?.datos
+      ? (doc.datos as BienvenidaData)
+      : defaultBienvenida(cliente, empresa)
   );
 
-  function upd(patch: Partial<BienvenidaData>) {
-    setData((d) => ({ ...d, ...patch }));
+  const [onboardingData, setOnboardingData] = useState<OnboardingData>(
+    tipo === "onboarding" && doc?.datos
+      ? (doc.datos as OnboardingData)
+      : defaultOnboarding(cliente, empresa)
+  );
+
+  // ── Bienvenida helpers ──────────────────────────────────────────────────────
+  function updB(patch: Partial<BienvenidaData>) {
+    setBienvenidaData((d) => ({ ...d, ...patch }));
   }
 
-  // Pasos
-  function addPaso() {
-    upd({ pasos: [...data.pasos, { numero: data.pasos.length + 1, texto: "" }] });
-  }
-  function updPaso(idx: number, patch: Partial<Paso>) {
-    upd({ pasos: data.pasos.map((p, i) => (i === idx ? { ...p, ...patch } : p)) });
-  }
-  function removePaso(idx: number) {
-    upd({ pasos: data.pasos.filter((_, i) => i !== idx) });
+  // ── Onboarding helpers ──────────────────────────────────────────────────────
+  function updO(patch: Partial<OnboardingData>) {
+    setOnboardingData((d) => ({ ...d, ...patch }));
   }
 
-  // Firmas
-  function addFirma() {
-    upd({ firmas: [...data.firmas, { empresa: "", nombre: "", rol: "", fecha: new Date().toISOString().slice(0, 10) }] });
+  function updSeccion(idx: number, patch: Partial<SeccionOnboarding>) {
+    updO({ secciones: onboardingData.secciones.map((s, i) => (i === idx ? { ...s, ...patch } : s)) });
   }
-  function updFirma(idx: number, patch: Partial<Firma>) {
-    upd({ firmas: data.firmas.map((f, i) => (i === idx ? { ...f, ...patch } : f)) });
+  function addSeccion() {
+    updO({ secciones: [...onboardingData.secciones, { titulo: "", contenido: "" }] });
   }
-  function removeFirma(idx: number) {
-    upd({ firmas: data.firmas.filter((_, i) => i !== idx) });
+  function rmSeccion(idx: number) {
+    updO({ secciones: onboardingData.secciones.filter((_, i) => i !== idx) });
   }
 
-  // Contactos del equipo
-  function addContacto() {
-    upd({ equipo: { ...data.equipo, contactos: [...data.equipo.contactos, { label: "", valor: "" }] } });
+  function updFase(idx: number, patch: Partial<FaseOnboarding>) {
+    updO({ fases: onboardingData.fases.map((f, i) => (i === idx ? { ...f, ...patch } : f)) });
   }
-  function updContacto(idx: number, patch: Partial<Contacto>) {
-    upd({ equipo: { ...data.equipo, contactos: data.equipo.contactos.map((c, i) => (i === idx ? { ...c, ...patch } : c)) } });
+  function addFase() {
+    updO({ fases: [...onboardingData.fases, { nombre: "", duracion: "", estado: "pendiente", desc: "" }] });
   }
-  function removeContacto(idx: number) {
-    upd({ equipo: { ...data.equipo, contactos: data.equipo.contactos.filter((_, i) => i !== idx) } });
+  function rmFase(idx: number) {
+    updO({ fases: onboardingData.fases.filter((_, i) => i !== idx) });
   }
 
   async function handleSave() {
     setSaving(true);
     try {
+      const datos = tipo === "bienvenida" ? bienvenidaData : onboardingData;
+      const clienteVal = tipo === "bienvenida" ? bienvenidaData.cliente : onboardingData.cliente;
+      const empresaVal = tipo === "bienvenida" ? bienvenidaData.empresa : onboardingData.empresa;
+      const fechaVal = tipo === "bienvenida" ? bienvenidaData.fecha : onboardingData.fecha;
       await onSave({
         id: doc?.id ?? crypto.randomUUID(),
-        cliente: data.header.cliente,
-        empresa: data.equipo.titulo ? (data.header.cliente !== data.titulo.titulo ? data.titulo.titulo : null) : null,
+        cliente: clienteVal,
+        empresa: empresaVal || null,
         tipo,
-        fecha: data.titulo.fecha,
+        fecha: fechaVal,
         estado,
-        notas,
-        datos: data,
+        notas: notasCRM,
+        datos,
         created_at: doc?.created_at,
       } as OnboardingDoc);
       onClose();
@@ -90,135 +98,229 @@ export function BienvenidaEditor({ doc, clienteDefault = "", onSave, onClose }: 
     }
   }
 
+  const previewProps =
+    tipo === "bienvenida"
+      ? ({ tipo: "bienvenida" as const, data: bienvenidaData })
+      : ({ tipo: "onboarding" as const, data: onboardingData });
+
   return (
     <div className="space-y-6">
-      {/* Encabezado */}
-      <fieldset className="space-y-3">
-        <legend className="text-[10px] font-bold uppercase tracking-widest text-primary mb-2">Encabezado</legend>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <Label className="label-muted">Cliente</Label>
-            <Input value={data.header.cliente} onChange={(e) => upd({ header: { ...data.header, cliente: e.target.value } })} className="bg-muted/40 border-border/60" />
-          </div>
-          <div className="space-y-1">
-            <Label className="label-muted">Fecha</Label>
-            <Input type="date" value={data.titulo.fecha} onChange={(e) => upd({ titulo: { ...data.titulo, fecha: e.target.value } })} className="bg-muted/40 border-border/60" />
-          </div>
-          <div className="space-y-1 col-span-2">
-            <Label className="label-muted">Título del documento</Label>
-            <Input value={data.titulo.titulo} onChange={(e) => upd({ titulo: { ...data.titulo, titulo: e.target.value } })} className="bg-muted/40 border-border/60" />
-          </div>
-        </div>
-      </fieldset>
-
-      {/* Mensaje */}
-      <fieldset className="space-y-3">
-        <legend className="text-[10px] font-bold uppercase tracking-widest text-primary mb-2">Mensaje</legend>
-        <div className="space-y-1">
-          <Label className="label-muted">Saludo</Label>
-          <Input value={data.mensaje.saludo} onChange={(e) => upd({ mensaje: { ...data.mensaje, saludo: e.target.value } })} className="bg-muted/40 border-border/60" />
-        </div>
-        <div className="space-y-1">
-          <Label className="label-muted">Cuerpo (separá párrafos con línea en blanco)</Label>
-          <Textarea value={data.mensaje.cuerpo} onChange={(e) => upd({ mensaje: { ...data.mensaje, cuerpo: e.target.value } })} rows={5} className="bg-muted/40 border-border/60 resize-none text-[12px]" />
-        </div>
-      </fieldset>
-
-      {/* Equipo */}
-      <fieldset className="space-y-3">
-        <legend className="text-[10px] font-bold uppercase tracking-widest text-primary mb-2">Tu contacto en Meteoro</legend>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <Label className="label-muted">Nombre</Label>
-            <Input value={data.equipo.nombre} onChange={(e) => upd({ equipo: { ...data.equipo, nombre: e.target.value } })} className="bg-muted/40 border-border/60" />
-          </div>
-          <div className="space-y-1">
-            <Label className="label-muted">Rol</Label>
-            <Input value={data.equipo.rol} onChange={(e) => upd({ equipo: { ...data.equipo, rol: e.target.value } })} className="bg-muted/40 border-border/60" />
-          </div>
-        </div>
-        <div className="space-y-1">
-          <div className="flex items-center justify-between">
-            <Label className="label-muted">Datos de contacto</Label>
-            <Button type="button" size="sm" variant="ghost" className="h-5 text-[9px] gap-0.5" onClick={addContacto}><Plus className="h-2.5 w-2.5" />Agregar</Button>
-          </div>
-          {data.equipo.contactos.map((c, idx) => (
-            <div key={idx} className="flex gap-1 items-center">
-              <Input placeholder="Label" value={c.label} onChange={(e) => updContacto(idx, { label: e.target.value })} className="bg-muted/40 border-border/60 text-[11px] h-6 w-24" />
-              <Input placeholder="Valor" value={c.valor} onChange={(e) => updContacto(idx, { valor: e.target.value })} className="bg-muted/40 border-border/60 text-[11px] h-6 flex-1" />
-              <Button type="button" size="icon" variant="ghost" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeContacto(idx)}><Trash2 className="h-3 w-3" /></Button>
-            </div>
+      {/* Selector de tipo */}
+      <fieldset>
+        <legend className="text-[10px] font-bold uppercase tracking-widest text-primary mb-2">Tipo de documento</legend>
+        <div className="flex gap-2">
+          {(["bienvenida", "onboarding"] as const).map((t) => (
+            <button key={t} type="button" onClick={() => setTipo(t)}
+              className={`flex-1 py-2 text-[11px] font-semibold rounded border transition-all capitalize ${tipo === t ? "bg-primary text-primary-foreground border-primary" : "bg-muted/20 text-muted-foreground border-border/40 hover:border-border"}`}>
+              {t}
+            </button>
           ))}
         </div>
       </fieldset>
 
-      {/* Pasos */}
-      <fieldset className="space-y-2">
-        <div className="flex items-center justify-between">
-          <legend className="text-[10px] font-bold uppercase tracking-widest text-primary">Próximos pasos</legend>
-          <Button type="button" size="sm" variant="ghost" className="h-6 text-[10px] gap-1" onClick={addPaso}><Plus className="h-3 w-3" />Agregar</Button>
-        </div>
-        {data.pasos.map((p, idx) => (
-          <div key={idx} className="flex gap-2 items-center">
-            <span className="text-[11px] text-muted-foreground font-bold w-5 text-right shrink-0">{p.numero}</span>
-            <Input value={p.texto} onChange={(e) => updPaso(idx, { texto: e.target.value })} placeholder="Descripción del paso" className="bg-muted/40 border-border/60 text-[12px] h-7 flex-1" />
-            <Button type="button" size="icon" variant="ghost" className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removePaso(idx)}><Trash2 className="h-3.5 w-3.5" /></Button>
-          </div>
-        ))}
-      </fieldset>
-
-      {/* Firmas */}
-      <fieldset className="space-y-2">
-        <div className="flex items-center justify-between">
-          <legend className="text-[10px] font-bold uppercase tracking-widest text-primary">Firmas</legend>
-          <Button type="button" size="sm" variant="ghost" className="h-6 text-[10px] gap-1" onClick={addFirma}><Plus className="h-3 w-3" />Agregar</Button>
-        </div>
-        {data.firmas.map((f, idx) => (
-          <div key={idx} className="flex gap-2 items-start bg-muted/20 rounded p-2 border border-border/30">
-            <div className="flex-1 grid grid-cols-2 gap-2">
-              <Input placeholder="Empresa" value={f.empresa} onChange={(e) => updFirma(idx, { empresa: e.target.value })} className="bg-muted/40 border-border/60 text-[12px] h-7" />
-              <Input placeholder="Nombre" value={f.nombre} onChange={(e) => updFirma(idx, { nombre: e.target.value })} className="bg-muted/40 border-border/60 text-[12px] h-7" />
-              <Input placeholder="Rol" value={f.rol} onChange={(e) => updFirma(idx, { rol: e.target.value })} className="bg-muted/40 border-border/60 text-[12px] h-7" />
-              <Input type="date" value={f.fecha} onChange={(e) => updFirma(idx, { fecha: e.target.value })} className="bg-muted/40 border-border/60 text-[12px] h-7" />
+      {/* ── BIENVENIDA ── */}
+      {tipo === "bienvenida" && (
+        <>
+          <fieldset className="space-y-3">
+            <legend className="text-[10px] font-bold uppercase tracking-widest text-primary mb-2">Cliente</legend>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="label-muted">Nombre del cliente</Label>
+                <Input value={bienvenidaData.cliente} onChange={(e) => updB({ cliente: e.target.value })} className="bg-muted/40 border-border/60" />
+              </div>
+              <div className="space-y-1">
+                <Label className="label-muted">Empresa / Organización</Label>
+                <Input value={bienvenidaData.empresa} onChange={(e) => updB({ empresa: e.target.value })} className="bg-muted/40 border-border/60" />
+              </div>
+              <div className="space-y-1">
+                <Label className="label-muted">Fecha del documento</Label>
+                <Input type="date" value={bienvenidaData.fecha} onChange={(e) => updB({ fecha: e.target.value })} className="bg-muted/40 border-border/60" />
+              </div>
             </div>
-            <Button type="button" size="icon" variant="ghost" className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeFirma(idx)}><Trash2 className="h-3.5 w-3.5" /></Button>
-          </div>
-        ))}
-      </fieldset>
+          </fieldset>
 
-      {/* Footer */}
-      <fieldset className="space-y-3">
-        <legend className="text-[10px] font-bold uppercase tracking-widest text-primary mb-2">Footer</legend>
-        <div className="grid grid-cols-3 gap-3">
-          <div className="space-y-1">
-            <Label className="label-muted">Email</Label>
-            <Input value={data.footer.email} onChange={(e) => upd({ footer: { ...data.footer, email: e.target.value } })} className="bg-muted/40 border-border/60 text-[12px]" />
-          </div>
-          <div className="space-y-1">
-            <Label className="label-muted">Teléfono</Label>
-            <Input value={data.footer.telefono} onChange={(e) => upd({ footer: { ...data.footer, telefono: e.target.value } })} className="bg-muted/40 border-border/60 text-[12px]" />
-          </div>
-          <div className="space-y-1">
-            <Label className="label-muted">Instagram</Label>
-            <Input value={data.footer.instagram} onChange={(e) => upd({ footer: { ...data.footer, instagram: e.target.value } })} className="bg-muted/40 border-border/60 text-[12px]" />
-          </div>
-        </div>
-      </fieldset>
+          <fieldset className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input type="checkbox" id="show-msg" checked={bienvenidaData.showMensaje} onChange={(e) => updB({ showMensaje: e.target.checked })} className="accent-primary" />
+              <legend className="text-[10px] font-bold uppercase tracking-widest text-primary cursor-pointer" onClick={() => updB({ showMensaje: !bienvenidaData.showMensaje })}>Mensaje de bienvenida</legend>
+            </div>
+            {bienvenidaData.showMensaje && (
+              <Textarea value={bienvenidaData.mensaje} onChange={(e) => updB({ mensaje: e.target.value })} rows={4} className="bg-muted/40 border-border/60 resize-none text-[12px]" />
+            )}
+          </fieldset>
+
+          <fieldset className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input type="checkbox" checked={bienvenidaData.showPortal} onChange={(e) => updB({ showPortal: e.target.checked })} className="accent-primary" />
+              <legend className="text-[10px] font-bold uppercase tracking-widest text-primary cursor-pointer" onClick={() => updB({ showPortal: !bienvenidaData.showPortal })}>Portal de clientes</legend>
+            </div>
+            {bienvenidaData.showPortal && (
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                <Input placeholder="URL del portal" value={bienvenidaData.portalUrl} onChange={(e) => updB({ portalUrl: e.target.value })} className="bg-muted/40 border-border/60 text-[12px] h-7 col-span-2" />
+                <Input placeholder="Usuario" value={bienvenidaData.portalUser} onChange={(e) => updB({ portalUser: e.target.value })} className="bg-muted/40 border-border/60 text-[12px] h-7" />
+                <Input placeholder="Contraseña temporal" value={bienvenidaData.portalPass} onChange={(e) => updB({ portalPass: e.target.value })} className="bg-muted/40 border-border/60 text-[12px] h-7" />
+              </div>
+            )}
+          </fieldset>
+
+          <fieldset className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input type="checkbox" checked={bienvenidaData.showPasos} onChange={(e) => updB({ showPasos: e.target.checked })} className="accent-primary" />
+              <legend className="text-[10px] font-bold uppercase tracking-widest text-primary cursor-pointer" onClick={() => updB({ showPasos: !bienvenidaData.showPasos })}>Próximos pasos</legend>
+            </div>
+            {bienvenidaData.showPasos && (
+              <>
+                <p className="text-[10px] text-muted-foreground">Un paso por línea. Se numeran automáticamente.</p>
+                <Textarea value={bienvenidaData.pasos} onChange={(e) => updB({ pasos: e.target.value })} rows={5} className="bg-muted/40 border-border/60 resize-none text-[12px]" />
+              </>
+            )}
+          </fieldset>
+
+          <fieldset className="space-y-2">
+            <legend className="text-[10px] font-bold uppercase tracking-widest text-primary mb-1">Firma</legend>
+            <div className="grid grid-cols-2 gap-2">
+              <Input placeholder="Firmante Meteoro" value={bienvenidaData.firmaMeteoro} onChange={(e) => updB({ firmaMeteoro: e.target.value })} className="bg-muted/40 border-border/60 text-[12px] h-7" />
+              <Input placeholder="Cargo" value={bienvenidaData.firmaCargo} onChange={(e) => updB({ firmaCargo: e.target.value })} className="bg-muted/40 border-border/60 text-[12px] h-7" />
+            </div>
+          </fieldset>
+        </>
+      )}
+
+      {/* ── ONBOARDING ── */}
+      {tipo === "onboarding" && (
+        <>
+          <fieldset className="space-y-3">
+            <legend className="text-[10px] font-bold uppercase tracking-widest text-primary mb-2">Cliente</legend>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="label-muted">Nombre del cliente</Label>
+                <Input value={onboardingData.cliente} onChange={(e) => updO({ cliente: e.target.value })} className="bg-muted/40 border-border/60" />
+              </div>
+              <div className="space-y-1">
+                <Label className="label-muted">Empresa</Label>
+                <Input value={onboardingData.empresa} onChange={(e) => updO({ empresa: e.target.value })} className="bg-muted/40 border-border/60" />
+              </div>
+              <div className="space-y-1">
+                <Label className="label-muted">Fecha del documento</Label>
+                <Input type="date" value={onboardingData.fecha} onChange={(e) => updO({ fecha: e.target.value })} className="bg-muted/40 border-border/60" />
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input type="checkbox" checked={onboardingData.showResp} onChange={(e) => updO({ showResp: e.target.checked })} className="accent-primary" />
+              <legend className="text-[10px] font-bold uppercase tracking-widest text-primary cursor-pointer" onClick={() => updO({ showResp: !onboardingData.showResp })}>Responsables y fechas</legend>
+            </div>
+            {onboardingData.showResp && (
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                <Input placeholder="Responsable cliente" value={onboardingData.respCliente} onChange={(e) => updO({ respCliente: e.target.value })} className="bg-muted/40 border-border/60 text-[12px] h-7" />
+                <Input placeholder="Responsable Meteoro" value={onboardingData.respMeteoro} onChange={(e) => updO({ respMeteoro: e.target.value })} className="bg-muted/40 border-border/60 text-[12px] h-7" />
+                <div className="space-y-0.5">
+                  <Label className="text-[9px] text-muted-foreground">Fecha de inicio</Label>
+                  <Input type="date" value={onboardingData.fechaInicio} onChange={(e) => updO({ fechaInicio: e.target.value })} className="bg-muted/40 border-border/60 text-[12px] h-7" />
+                </div>
+                <div className="space-y-0.5">
+                  <Label className="text-[9px] text-muted-foreground">Entrega estimada</Label>
+                  <Input type="date" value={onboardingData.fechaEntrega} onChange={(e) => updO({ fechaEntrega: e.target.value })} className="bg-muted/40 border-border/60 text-[12px] h-7" />
+                </div>
+              </div>
+            )}
+          </fieldset>
+
+          <fieldset className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <input type="checkbox" checked={onboardingData.showSecciones} onChange={(e) => updO({ showSecciones: e.target.checked })} className="accent-primary" />
+                <legend className="text-[10px] font-bold uppercase tracking-widest text-primary">Secciones / Accesos</legend>
+              </div>
+              {onboardingData.showSecciones && <Button type="button" size="sm" variant="ghost" className="h-6 text-[10px] gap-1" onClick={addSeccion}><Plus className="h-3 w-3" />Agregar</Button>}
+            </div>
+            {onboardingData.showSecciones && onboardingData.secciones.map((s, idx) => (
+              <div key={idx} className="bg-muted/20 rounded p-2 border border-border/30 space-y-1">
+                <div className="flex gap-2 items-center">
+                  <Input placeholder="Título de la sección" value={s.titulo} onChange={(e) => updSeccion(idx, { titulo: e.target.value })} className="bg-muted/40 border-border/60 text-[12px] h-7 flex-1" />
+                  <Button type="button" size="icon" variant="ghost" className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => rmSeccion(idx)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                </div>
+                <Textarea placeholder="Contenido (URL, usuario, contraseña, notas...)" value={s.contenido} onChange={(e) => updSeccion(idx, { contenido: e.target.value })} rows={2} className="bg-muted/40 border-border/60 resize-none text-[12px]" />
+              </div>
+            ))}
+          </fieldset>
+
+          <fieldset className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <input type="checkbox" checked={onboardingData.showFases} onChange={(e) => updO({ showFases: e.target.checked })} className="accent-primary" />
+                <legend className="text-[10px] font-bold uppercase tracking-widest text-primary">Fases del proyecto</legend>
+              </div>
+              {onboardingData.showFases && <Button type="button" size="sm" variant="ghost" className="h-6 text-[10px] gap-1" onClick={addFase}><Plus className="h-3 w-3" />Agregar</Button>}
+            </div>
+            {onboardingData.showFases && onboardingData.fases.map((f, idx) => (
+              <div key={idx} className="bg-muted/20 rounded p-2 border border-border/30 space-y-2">
+                <div className="flex gap-2 items-center">
+                  <Input placeholder="Nombre de la fase" value={f.nombre} onChange={(e) => updFase(idx, { nombre: e.target.value })} className="bg-muted/40 border-border/60 text-[12px] h-7 flex-1" />
+                  <Button type="button" size="icon" variant="ghost" className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => rmFase(idx)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                </div>
+                <div className="flex gap-2">
+                  <Input placeholder="Duración" value={f.duracion} onChange={(e) => updFase(idx, { duracion: e.target.value })} className="bg-muted/40 border-border/60 text-[12px] h-7 flex-1" />
+                  <Select value={f.estado} onValueChange={(v) => updFase(idx, { estado: (v || f.estado) as FaseOnboarding["estado"] })}>
+                    <SelectTrigger className="bg-muted/40 border-border/60 text-[12px] h-7 w-32"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pendiente">Pendiente</SelectItem>
+                      <SelectItem value="en-curso">En curso</SelectItem>
+                      <SelectItem value="completado">Completado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Input placeholder="Descripción (opcional)" value={f.desc} onChange={(e) => updFase(idx, { desc: e.target.value })} className="bg-muted/40 border-border/60 text-[12px] h-7" />
+              </div>
+            ))}
+          </fieldset>
+
+          <fieldset className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input type="checkbox" checked={onboardingData.showEntregables} onChange={(e) => updO({ showEntregables: e.target.checked })} className="accent-primary" />
+              <legend className="text-[10px] font-bold uppercase tracking-widest text-primary">Entregables</legend>
+            </div>
+            {onboardingData.showEntregables && (
+              <Textarea placeholder="Un entregable por línea" value={onboardingData.entregables} onChange={(e) => updO({ entregables: e.target.value })} rows={4} className="bg-muted/40 border-border/60 resize-none text-[12px]" />
+            )}
+          </fieldset>
+
+          <fieldset className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input type="checkbox" checked={onboardingData.showCompromisos} onChange={(e) => updO({ showCompromisos: e.target.checked })} className="accent-primary" />
+              <legend className="text-[10px] font-bold uppercase tracking-widest text-primary">Compromisos mutuos</legend>
+            </div>
+            {onboardingData.showCompromisos && (
+              <Textarea placeholder="Un compromiso por línea" value={onboardingData.compromisos} onChange={(e) => updO({ compromisos: e.target.value })} rows={4} className="bg-muted/40 border-border/60 resize-none text-[12px]" />
+            )}
+          </fieldset>
+
+          <fieldset className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input type="checkbox" checked={onboardingData.showSla} onChange={(e) => updO({ showSla: e.target.checked })} className="accent-primary" />
+              <legend className="text-[10px] font-bold uppercase tracking-widest text-primary">SLA y soporte</legend>
+            </div>
+            {onboardingData.showSla && (
+              <Textarea value={onboardingData.sla} onChange={(e) => updO({ sla: e.target.value })} rows={4} className="bg-muted/40 border-border/60 resize-none text-[12px]" />
+            )}
+          </fieldset>
+
+          <fieldset className="space-y-2">
+            <legend className="text-[10px] font-bold uppercase tracking-widest text-primary mb-1">Firma</legend>
+            <div className="grid grid-cols-2 gap-2">
+              <Input placeholder="Firmante Meteoro" value={onboardingData.firmaMeteoro} onChange={(e) => updO({ firmaMeteoro: e.target.value })} className="bg-muted/40 border-border/60 text-[12px] h-7" />
+              <Input placeholder="Cargo" value={onboardingData.firmaCargo} onChange={(e) => updO({ firmaCargo: e.target.value })} className="bg-muted/40 border-border/60 text-[12px] h-7" />
+            </div>
+          </fieldset>
+        </>
+      )}
 
       {/* Metadatos CRM */}
       <fieldset className="space-y-3 border-t border-border/30 pt-4">
         <legend className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Metadatos CRM</legend>
         <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <Label className="label-muted">Tipo</Label>
-            <Select value={tipo} onValueChange={(v) => setTipo(v as OnboardingDoc["tipo"])}>
-              <SelectTrigger className="bg-muted/40 border-border/60"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="bienvenida">Bienvenida</SelectItem>
-                <SelectItem value="onboarding">Onboarding</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
           <div className="space-y-1">
             <Label className="label-muted">Estado</Label>
             <Select value={estado} onValueChange={(v) => setEstado(v as OnboardingDoc["estado"])}>
@@ -232,7 +334,7 @@ export function BienvenidaEditor({ doc, clienteDefault = "", onSave, onClose }: 
           </div>
           <div className="space-y-1 col-span-2">
             <Label className="label-muted">Notas internas</Label>
-            <Textarea value={notas} onChange={(e) => setNotas(e.target.value)} rows={2} className="bg-muted/40 border-border/60 resize-none text-[12px]" />
+            <Textarea value={notasCRM} onChange={(e) => setNotasCRM(e.target.value)} rows={2} className="bg-muted/40 border-border/60 resize-none text-[12px]" />
           </div>
         </div>
       </fieldset>
@@ -250,7 +352,7 @@ export function BienvenidaEditor({ doc, clienteDefault = "", onSave, onClose }: 
       </div>
 
       {previewOpen && (
-        <DocumentPreview tipo="bienvenida" data={data} open={previewOpen} onClose={() => setPreviewOpen(false)} />
+        <DocumentPreview {...previewProps} open={previewOpen} onClose={() => setPreviewOpen(false)} />
       )}
     </div>
   );
