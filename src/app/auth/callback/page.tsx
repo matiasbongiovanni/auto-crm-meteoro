@@ -1,48 +1,63 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, Suspense } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
-import { Suspense } from "react";
+import type { Session } from "@supabase/supabase-js";
 
 const ALLOWED_EMAILS = ["matiasweschta@gmail.com"];
 
 function CallbackContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
-    const code = searchParams.get("code");
-
-    if (!code) {
-      router.replace("/login?error=auth");
-      return;
-    }
-
     const supabase = getSupabaseBrowserClient();
     if (!supabase) {
       router.replace("/login?error=auth");
       return;
     }
 
-    supabase.auth.exchangeCodeForSession(code).then(({ error }: { error: { message: string } | null }) => {
-      if (error) {
-        router.replace(`/login?error=auth&detail=${encodeURIComponent(error.message)}`);
+    let done = false;
+
+    async function handleSession(session: Session | null) {
+      if (done) return;
+      done = true;
+
+      if (!session?.user?.email) {
+        router.replace("/login?error=auth");
         return;
       }
 
-      supabase.auth.getUser().then(({ data: { user } }: { data: { user: { email?: string } | null } }) => {
-        if (!user?.email || !ALLOWED_EMAILS.includes(user.email.toLowerCase())) {
-          supabase.auth.signOut().then(() => {
-            router.replace("/login?error=unauthorized");
-          });
-          return;
-        }
-        router.replace("/dashboard");
-      });
+      if (!ALLOWED_EMAILS.includes(session.user.email.toLowerCase())) {
+        await supabase!.auth.signOut();
+        router.replace("/login?error=unauthorized");
+        return;
+      }
+
+      router.replace("/dashboard");
+    }
+
+    // detectSessionInUrl: true (default) handles the code exchange automatically.
+    // We listen for the result instead of calling exchangeCodeForSession manually.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN") handleSession(session);
+      if (event === "INITIAL_SESSION" && session) handleSession(session);
     });
-  }, [router, searchParams]);
+
+    // Fallback: si no hay evento en 10s, algo falló
+    const timer = setTimeout(() => {
+      if (!done) {
+        done = true;
+        router.replace("/login?error=auth");
+      }
+    }, 10000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timer);
+    };
+  }, [router]);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center">

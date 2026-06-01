@@ -43,12 +43,11 @@ function LoginContent() {
     }
   }
 
-  const detail = searchParams.get("detail");
   const displayError =
     authError === "unauthorized"
       ? "Esta cuenta de Google no tiene acceso al CRM de Meteoro."
       : authError === "auth"
-      ? `Error al autenticar: ${detail ?? "intentá de nuevo."}`
+      ? "Error al autenticar. Intentá de nuevo."
       : error;
 
   return (
