@@ -185,6 +185,26 @@
     </div>
 
     <div class="form-section">
+      <div class="form-section-title">Plan básico (blanco)</div>
+      <div class="form-group"><label>Nombre</label><input type="text" id="p1-nombre" value="Mantenimiento Básico" oninput="up()"></div>
+      <div class="form-group"><label>Precio / periodo</label><div class="form-row"><input type="text" id="p1-precio" value="$ 25.000" style="flex:2" oninput="up()"><input type="text" id="p1-periodo" value="/ mes" style="flex:1" oninput="up()"></div></div>
+      <div class="form-group"><label>Incluye (una por línea)</label><textarea id="p1-features" rows="4" oninput="up()">Hosting y Dominio incluidos
+Certificado de seguridad SSL
+Actualizaciones menores de contenido
+Soporte técnico estándar</textarea></div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Plan premium (negro)</div>
+      <div class="form-group"><label>Nombre</label><input type="text" id="p2-nombre" value="Mantenimiento Pro" oninput="up()"></div>
+      <div class="form-group"><label>Precio / periodo</label><div class="form-row"><input type="text" id="p2-precio" value="$ 50.000" style="flex:2" oninput="up()"><input type="text" id="p2-periodo" value="/ mes" style="flex:1" oninput="up()"></div></div>
+      <div class="form-group"><label>Incluye (una por línea)</label><textarea id="p2-features" rows="4" oninput="up()">Hosting de alto rendimiento
+Soporte técnico prioritario (WhatsApp)
+Cambios estructurales y diseño continuo
+Optimización SEO y analíticas</textarea></div>
+    </div>
+
+    <div class="form-section">
       <div class="form-section-title">Notas y condiciones</div>
       <div class="form-group"><textarea id="f-notas" rows="3" placeholder="Pago 50% adelantado / 50% contra entrega." oninput="up()"></textarea></div>
     </div>
@@ -275,6 +295,29 @@ function up(){
 
   const notasHtml = notas ? `<div class="doc-notes-lbl">Notas y condiciones</div><div class="doc-notes-txt">${esc(notas)}</div>` : '';
 
+  const p1nombre = gv('p1-nombre')||'Mantenimiento Básico';
+  const p1precio = gv('p1-precio')||'$ 25.000';
+  const p1periodo = gv('p1-periodo')||'/ mes';
+  const p1features = (gv('p1-features')||'').split('\n').filter(s=>s.trim());
+  const p2nombre = gv('p2-nombre')||'Mantenimiento Pro';
+  const p2precio = gv('p2-precio')||'$ 50.000';
+  const p2periodo = gv('p2-periodo')||'/ mes';
+  const p2features = (gv('p2-features')||'').split('\n').filter(s=>s.trim());
+
+  const mkFeatures = (list) => list.map(f=>`<li>${esc(f)}</li>`).join('');
+  const plansHtml = `<div class="plans-grid">
+    <div class="plan-card">
+      <div class="plan-name">${esc(p1nombre)}</div>
+      <div class="plan-price">${esc(p1precio)} <span class="plan-period">${esc(p1periodo)}</span></div>
+      <ul class="plan-features">${mkFeatures(p1features)}</ul>
+    </div>
+    <div class="plan-card plan-premium">
+      <div class="plan-name">${esc(p2nombre)}</div>
+      <div class="plan-price">${esc(p2precio)} <span class="plan-period">${esc(p2periodo)}</span></div>
+      <ul class="plan-features">${mkFeatures(p2features)}</ul>
+    </div>
+  </div>`;
+
   document.getElementById('doc').innerHTML = `
   <div class="marco-documento"></div>
   <div class="doc-container">
@@ -323,28 +366,7 @@ function up(){
     <div class="doc-totals">${tots}</div>
 
     <div class="doc-subsection-title">Planes de Mantenimiento Mensual</div>
-    <div class="plans-grid">
-      <div class="plan-card">
-        <div class="plan-name">Mantenimiento Básico</div>
-        <div class="plan-price">$ 25.000 <span class="plan-period">/ mes</span></div>
-        <ul class="plan-features">
-          <li>Hosting y Dominio incluidos</li>
-          <li>Certificado de seguridad SSL</li>
-          <li>Actualizaciones menores de contenido</li>
-          <li>Soporte técnico estándar</li>
-        </ul>
-      </div>
-      <div class="plan-card plan-premium">
-        <div class="plan-name">Mantenimiento Pro</div>
-        <div class="plan-price">$ 50.000 <span class="plan-period">/ mes</span></div>
-        <ul class="plan-features">
-          <li>Hosting de alto rendimiento</li>
-          <li>Soporte técnico prioritario (WhatsApp)</li>
-          <li>Cambios estructurales y diseño continuo</li>
-          <li>Optimización SEO y analíticas</li>
-        </ul>
-      </div>
-    </div>
+    ${plansHtml}
 
     <div class="doc-subsection-title">Métodos de Pago</div>
     <div class="payment-grid">
