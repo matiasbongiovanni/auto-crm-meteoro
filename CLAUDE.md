@@ -15,10 +15,12 @@ npm run mcp        # Servidor MCP (Claude Desktop/Web)
 
 ## Auth
 
-- Login en `/login` (email/password vía Supabase Auth)
+- Login en `/login` vía **Google OAuth** (Supabase) — solo `matiasweschta@gmail.com` tiene acceso
+- Sin formulario email/password — el único método es Google OAuth
 - Roles: `ceo` (acceso total), `admin`, `freelancer`
 - Middleware (`middleware.ts`) protege todas las rutas excepto `/login`, `/auth/*`, `/api/crm/sync`, `/api/crm/update-from-whatsapp`, `/api/v1/*`, `/api/webhook`
-- El primer usuario que se registre obtiene rol `ceo` automáticamente
+- Allowlist de email verificada en dos capas: `middleware.ts` (cada request) y `src/app/auth/callback/route.ts` (post-OAuth)
+- Para agregar otro email autorizado: editar `ALLOWED_EMAILS` en `middleware.ts` y `src/app/auth/callback/route.ts`
 
 ## Arquitectura
 

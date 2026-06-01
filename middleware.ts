@@ -3,6 +3,7 @@ import { updateSession } from "@/lib/supabase/middleware";
 
 const PUBLIC_PATHS = ["/login", "/auth"];
 const PUBLIC_API_PREFIXES = ["/api/crm/sync", "/api/crm/update-from-whatsapp", "/api/v1/", "/api/webhook", "/api/exchange"];
+const ALLOWED_EMAILS = ["matiasweschta@gmail.com"];
 
 function isPublicPath(pathname: string): boolean {
   if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) return true;
@@ -23,6 +24,13 @@ export async function middleware(request: NextRequest) {
   if (!user) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
+    return NextResponse.redirect(loginUrl);
+  }
+
+  if (!user.email || !ALLOWED_EMAILS.includes(user.email.toLowerCase())) {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/login";
+    loginUrl.searchParams.set("error", "unauthorized");
     return NextResponse.redirect(loginUrl);
   }
 
