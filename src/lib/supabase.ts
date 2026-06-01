@@ -11,7 +11,13 @@ export function getSupabaseBrowserClient() {
   if (!url || !anonKey) return null;
 
   if (!client) {
-    client = createBrowserClient(url, anonKey);
+    client = createBrowserClient(url, anonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        storageKey: "meteoro-crm-session",
+      },
+    });
   }
 
   return client;

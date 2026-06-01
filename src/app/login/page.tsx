@@ -37,53 +37,38 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      {/* Background gradient */}
-      <div
-        aria-hidden
-        className="pointer-events-none fixed inset-0 overflow-hidden"
-      >
+      {/* Background glow */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 h-[600px] w-[600px] rounded-full bg-primary opacity-[0.04] blur-[120px]" />
         <div className="absolute -bottom-40 -left-20 h-[400px] w-[400px] rounded-full bg-primary opacity-[0.03] blur-[100px]" />
       </div>
 
-      {/* Card */}
       <div className="relative w-full max-w-sm">
         <div className="glass-card rounded-2xl p-8 shadow-2xl">
+
           {/* Logo */}
-          <div className="flex items-center gap-3 mb-8">
+          <div className="flex justify-center mb-8">
             <Image
-              src="/brand/meteoro-isotipo.svg"
+              src="/brand/meteoro-negativo.png"
               alt="Meteoro"
-              width={32}
-              height={32}
-              className="shrink-0"
+              width={120}
+              height={120}
+              className="opacity-90"
+              priority
             />
-            <div>
-              <p
-                className="text-[17px] font-bold tracking-[-0.02em] text-foreground"
-              >
-                METEORO
-              </p>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
-                Operating System
-              </p>
-            </div>
           </div>
 
           {/* Heading */}
-          <div className="mb-6">
-            <h1
-              className="text-2xl font-bold text-foreground tracking-[-0.03em] mb-1"
-            >
+          <div className="mb-6 text-center">
+            <h1 className="text-xl font-bold text-foreground tracking-[-0.02em] mb-1">
               Bienvenido
             </h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Ingresá tus credenciales para continuar
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Error */}
             {error && (
               <div className="flex items-start gap-2.5 rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2.5">
                 <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
@@ -91,11 +76,8 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* Email */}
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="label-muted">
-                Email
-              </Label>
+              <Label htmlFor="email" className="label-muted">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -104,15 +86,12 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
-                className="bg-muted/40 border-border/80 text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:ring-primary/20 h-10"
+                className="bg-muted/40 border-border/80 text-foreground placeholder:text-muted-foreground/50 focus:border-primary h-10"
               />
             </div>
 
-            {/* Password */}
             <div className="space-y-1.5">
-              <Label htmlFor="password" className="label-muted">
-                Contraseña
-              </Label>
+              <Label htmlFor="password" className="label-muted">Contraseña</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -122,7 +101,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   autoComplete="current-password"
-                  className="bg-muted/40 border-border/80 text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:ring-primary/20 h-10 pr-10"
+                  className="bg-muted/40 border-border/80 text-foreground placeholder:text-muted-foreground/50 focus:border-primary h-10 pr-10"
                 />
                 <button
                   type="button"
@@ -135,23 +114,17 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Submit */}
             <Button
               type="submit"
               disabled={loading}
-              className="w-full h-10 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm  transition-all"
+              className="w-full h-10 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm mt-2"
             >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Ingresar"
-              )}
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Ingresar"}
             </Button>
           </form>
         </div>
 
-        {/* Footer */}
-        <p className="text-center text-[11px] text-muted-foreground/40 mt-4">
+        <p className="text-center text-[10px] text-muted-foreground/40 mt-4">
           Meteoro Agencia © {new Date().getFullYear()}
         </p>
       </div>
