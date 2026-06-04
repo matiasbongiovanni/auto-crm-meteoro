@@ -44,15 +44,15 @@ function JobRow({ job }: { job: LeadJob }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-medium capitalize">{job.type}</span>
-          {job.type === "maps" && params.nicho && (
+          {job.type === "maps" && typeof params.nicho === "string" && (
             <span className="text-muted-foreground">
-              {String(params.nicho)} · {String(params.ciudad || "")}
+              {params.nicho} · {typeof params.ciudad === "string" ? params.ciudad : ""}
             </span>
           )}
           {job.type === "instagram" && Array.isArray(params.handles) && (
             <span className="text-muted-foreground">
               @{(params.handles as string[]).slice(0, 2).join(", @")}
-              {(params.handles as string[]).length > 2 && ` +${(params.handles as string[]).length - 2}`}
+              {(params.handles as string[]).length > 2 ? ` +${(params.handles as string[]).length - 2}` : ""}
             </span>
           )}
         </div>
