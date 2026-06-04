@@ -13,6 +13,8 @@ import {
   Bot,
   MessageSquare,
   ShieldCheck,
+  Building2,
+  Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCrm } from "@/components/crm/provider";
@@ -21,11 +23,13 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/leads", label: "Leads", icon: Users },
   { href: "/pipeline", label: "Pipeline", icon: Kanban },
+  { href: "/clientes", label: "Clientes", icon: Building2 },
   { href: "/finanzas", label: "Finanzas", icon: DollarSign },
   { href: "/tareas", label: "Tareas", icon: CheckSquare },
   { href: "/documentos", label: "Documentos", icon: FileText },
   { href: "/agentes", label: "Agentes", icon: Bot },
   { href: "/mensajeria", label: "Mensajería", icon: MessageSquare },
+  { href: "/boveda", label: "Bóveda", icon: Lock, roleMin: "ceo" as const },
   { href: "/admin", label: "Admin", icon: ShieldCheck, roleMin: "ceo" as const },
 ];
 

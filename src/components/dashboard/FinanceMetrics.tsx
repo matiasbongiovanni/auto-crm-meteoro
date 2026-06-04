@@ -18,50 +18,64 @@ export function FinanceMetrics() {
   const prev = prevMonth(currentMonth);
 
   const stats = useMemo(() => {
-    const ingCurr = filterByMonth(state.ingresos, currentMonth).reduce((a, r) => a + (r.usd || 0), 0);
-    const egrCurr = filterByMonth(state.egresos, currentMonth).reduce((a, r) => a + (r.usd || 0), 0);
-    const netCurr = ingCurr - egrCurr;
+    const ingresosMes = filterByMonth(state.ingresos, currentMonth);
+    const egresosMes = filterByMonth(state.egresos, currentMonth);
+
+    const cobradoMes = ingresosMes.reduce((a, r) => a + (r.usd || 0), 0);
+    const egresosMesTotal = egresosMes.reduce((a, r) => a + (r.usd || 0), 0);
+    const netoMes = cobradoMes - egresosMesTotal;
 
     const ingPrev = filterByMonth(state.ingresos, prev).reduce((a, r) => a + (r.usd || 0), 0);
     const egrPrev = filterByMonth(state.egresos, prev).reduce((a, r) => a + (r.usd || 0), 0);
     const netPrev = ingPrev - egrPrev;
 
-    const mrr = monthlySubscriptionCost(state.subscriptions, currentMonth);
-    const annualProjection = mrr * 12;
-
-    const cobrado = filterByMonth(state.ingresos, currentMonth).reduce((a, r) => a + (r.usd || 0), 0);
-    const porCobrar = state.pendingPayments
-      .filter((p) => p.estado !== "cobrado")
+    // Presupuestado este mes: proposals enviadas en el mes actual
+    const presupuestadoMes = state.proposals
+      .filter((p) => p.fecha_envio?.startsWith(currentMonth))
       .reduce((a, p) => a + (p.monto_usd || 0), 0);
+    const cantPresupuestosMes = state.proposals.filter((p) => p.fecha_envio?.startsWith(currentMonth)).length;
 
-    // Top 5 clientes por ingresos totales
+    // Ticket promedio: cobrado / clientes únicos este mes
+    const clientesMes = new Set(ingresosMes.map((r) => r.persona).filter(Boolean));
+    const ticketPromedio = clientesMes.size > 0 ? cobradoMes / clientesMes.size : cobradoMes > 0 ? cobradoMes : 0;
+
+    // Pagos pendientes este mes: fecha_entrega en el mes actual y no cobrados
+    const pendingManual = state.pendingPayments.filter(
+      (p) => p.estado !== "cobrado" && p.fecha_entrega?.startsWith(currentMonth)
+    );
+    const pendientesMesManual = pendingManual.reduce((a, p) => a + (p.monto_usd || 0), 0);
+
+    // Mensualidades de clientes activos (billing_cycle mensual) que no tienen ingreso registrado este mes
+    const clientesConIngresoMes = new Set(
+      ingresosMes.map((r) => r.persona?.toLowerCase().trim()).filter(Boolean)
+    );
+    const mensualidadesPendientes = state.clientes
+      .filter((c) => c.status === "activo" && c.billing_cycle === "mensual")
+      .filter((c) => !clientesConIngresoMes.has(c.nombre.toLowerCase().trim()));
+    const pendientesMrr = mensualidadesPendientes.reduce((a, c) => a + (c.fee_usd || 0), 0);
+
+    const pendientesMes = pendientesMesManual + pendientesMrr;
+    const cantPendientesMes = pendingManual.length + mensualidadesPendientes.length;
+
+    // Chart / top clientes
     const byCliente: Record<string, number> = {};
     for (const r of state.ingresos) {
       const name = r.persona || "Sin asignar";
       byCliente[name] = (byCliente[name] || 0) + (r.usd || 0);
     }
-    const topClientes = Object.entries(byCliente)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5);
+    const topClientes = Object.entries(byCliente).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
-    // Ingresos por categoría (mes actual)
     const byCat: Record<string, number> = {};
-    for (const r of filterByMonth(state.ingresos, currentMonth)) {
+    for (const r of ingresosMes) {
       const cat = r.flow_kind || "otro";
       byCat[cat] = (byCat[cat] || 0) + (r.usd || 0);
     }
 
-    // Ticket promedio
-    const ingresosMes = filterByMonth(state.ingresos, currentMonth);
-    const ticket = ingresosMes.length > 0 ? ingCurr / ingresosMes.length : 0;
-
-    // YTD acumulado
-    const year = currentMonth.slice(0, 4);
-    const ytd = state.ingresos
-      .filter((r) => (r.period_month || r.fecha).startsWith(year))
-      .reduce((a, r) => a + (r.usd || 0), 0);
-
-    return { ingCurr, egrCurr, netCurr, ingPrev, netPrev, mrr, annualProjection, cobrado, porCobrar, topClientes, byCat, ticket, ytd };
+    return {
+      cobradoMes, netoMes, netPrev, presupuestadoMes, cantPresupuestosMes,
+      ticketPromedio, pendientesMes, cantPendientesMes,
+      topClientes, byCat,
+    };
   }, [state, currentMonth, prev]);
 
   // Chart data: last 6 months
@@ -73,16 +87,21 @@ export function FinanceMetrics() {
     });
   }, [state.ingresos, state.egresos]);
 
-  const netPctChange = pctDiff(stats.netCurr, stats.netPrev);
+  const netPctChange = pctDiff(stats.netoMes, stats.netPrev);
   const netUp = netPctChange >= 0;
 
   return (
     <div className="space-y-3 mb-4">
-      {/* Top row: key metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {/* Top row: 5 KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <MetricCard
+          label="Presupuestado mes"
+          value={`USD ${stats.presupuestadoMes.toFixed(0)}`}
+          sub={<span className="text-[10px] text-muted-foreground">{stats.cantPresupuestosMes} presupuesto{stats.cantPresupuestosMes !== 1 ? "s" : ""} emitido{stats.cantPresupuestosMes !== 1 ? "s" : ""}</span>}
+        />
         <MetricCard
           label="Neto mes"
-          value={`USD ${stats.netCurr.toFixed(0)}`}
+          value={`USD ${stats.netoMes.toFixed(0)}`}
           sub={
             <span className={cn("flex items-center gap-0.5 text-[10px]", netUp ? "text-[var(--success)]" : "text-destructive")}>
               {netUp ? <ArrowUpRight className="h-2.5 w-2.5" /> : <ArrowDownRight className="h-2.5 w-2.5" />}
@@ -91,19 +110,23 @@ export function FinanceMetrics() {
           }
         />
         <MetricCard
-          label="MRR"
-          value={`USD ${stats.mrr.toFixed(0)}`}
-          sub={<span className="text-[10px] text-muted-foreground">Proyección: USD {stats.annualProjection.toFixed(0)}/año</span>}
-        />
-        <MetricCard
-          label="Cobrado hoy"
-          value={`USD ${stats.cobrado.toFixed(0)}`}
-          sub={<span className="text-[10px] text-[var(--warning)]">USD {stats.porCobrar.toFixed(0)} por cobrar</span>}
+          label="Cobrado total mes"
+          value={`USD ${stats.cobradoMes.toFixed(0)}`}
+          sub={<span className="text-[10px] text-muted-foreground">ingresos registrados</span>}
         />
         <MetricCard
           label="Ticket promedio"
-          value={`USD ${stats.ticket.toFixed(0)}`}
-          sub={<span className="text-[10px] text-muted-foreground">YTD: USD {stats.ytd.toFixed(0)}</span>}
+          value={stats.ticketPromedio > 0 ? `USD ${stats.ticketPromedio.toFixed(0)}` : "—"}
+          sub={<span className="text-[10px] text-muted-foreground">por cliente este mes</span>}
+        />
+        <MetricCard
+          label="Pagos pendientes mes"
+          value={stats.pendientesMes > 0 ? `USD ${stats.pendientesMes.toFixed(0)}` : "—"}
+          sub={
+            stats.cantPendientesMes > 0
+              ? <span className="text-[10px] text-[var(--warning)]">{stats.cantPendientesMes} item{stats.cantPendientesMes !== 1 ? "s" : ""} (incl. mensualidades)</span>
+              : <span className="text-[10px] text-[var(--success)]">Todo cobrado</span>
+          }
         />
       </div>
 

@@ -8,10 +8,13 @@ import type {
   Agent,
   ApiKey,
   CalendarEvent,
+  Cliente,
   CompanyNote,
   CrmState,
   FinanceRow,
+  Invoice,
   Lead,
+  LeadJob,
   OnboardingDoc,
   PendingPayment,
   PipelineCard,
@@ -19,6 +22,8 @@ import type {
   Proposal,
   Subscription,
   UsageOverview,
+  VaultItem,
+  VaultMeta,
 } from "@/types/crm";
 
 type ActionStatus = "idle" | "loading" | "success" | "error";
@@ -34,7 +39,7 @@ type SessionState = {
   user: { email?: string };
 };
 
-type RefreshScope = "all" | "finanzas" | "shared" | "proposals";
+type RefreshScope = "all" | "finanzas" | "shared" | "proposals" | "clientes" | "jobs";
 
 type ContextValue = {
   state: CrmState;
@@ -73,6 +78,24 @@ type ContextValue = {
   saveOnboardingDoc: (doc: OnboardingDoc) => Promise<void>;
   deleteOnboardingDoc: (id: string) => Promise<void>;
   saveSubscription: (sub: Subscription) => Promise<void>;
+  saveCliente: (cliente: Cliente) => Promise<void>;
+  deleteCliente: (id: string) => Promise<void>;
+  saveInvoice: (invoice: Invoice) => Promise<void>;
+  deleteInvoice: (id: string) => Promise<void>;
+  markInvoicePaid: (id: string) => Promise<void>;
+  generateMonthlyInvoices: (periodMonth: string) => Promise<{ created: number }>;
+  // Leads generator
+  leadJobs: LeadJob[];
+  enqueueScrapeJob: (type: "maps" | "instagram", params: Record<string, unknown>) => Promise<LeadJob>;
+  refreshLeadJobs: () => Promise<void>;
+  // Vault (CEO only — no global state, loaded on demand per page)
+  vaultGetMeta: () => Promise<VaultMeta | null>;
+  vaultSetMeta: (params: { kdf_params: VaultMeta["kdf_params"]; verifier: string; verifier_iv: string }) => Promise<void>;
+  vaultList: () => Promise<VaultItem[]>;
+  vaultSaveItem: (item: Partial<VaultItem>) => Promise<void>;
+  vaultDeleteItem: (id: string) => Promise<void>;
+  vaultLogAudit: (auditAction: string, item_id?: string) => Promise<void>;
+  vaultListAudit: () => Promise<import("@/types/crm").VaultAuditEntry[]>;
 };
 
 const CrmContext = createContext<ContextValue | null>(null);
@@ -93,6 +116,8 @@ const EMPTY_STATE: CrmState = {
   companyNotes: [],
   pendingPayments: [],
   onboardingDocs: [],
+  clientes: [],
+  invoices: [],
 };
 
 function toSessionState(session: { access_token: string; user?: { email?: string } } | null | undefined) {
@@ -111,11 +136,15 @@ function scopeFromAction(action: string): RefreshScope {
   if (["save-shared-state", "save-pipeline", "save-agent", "save-calendar-event", "delete-calendar-event", "save-company-note", "delete-company-note", "save-pending-payment", "delete-pending-payment"].includes(action)) return "shared";
   if (action === "save-proposal") return "all";
   if (action === "delete-proposal") return "proposals";
+  if (["save-cliente", "delete-cliente", "save-invoice", "delete-invoice"].includes(action)) return "clientes";
+  if (["mark-invoice-paid", "generate-monthly-invoices"].includes(action)) return "all";
+  if (action.startsWith("vault-")) return "all";
   return "all";
 }
 
 export function CrmProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<CrmState>(EMPTY_STATE);
+  const [leadJobs, setLeadJobs] = useState<LeadJob[]>([]);
   const [usage, setUsage] = useState<UsageOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [authReady, setAuthReady] = useState(false);
@@ -151,10 +180,22 @@ export function CrmProvider({ children }: { children: React.ReactNode }) {
         if (scope === "finanzas") return { ...prev, ingresos: result.ingresos ?? prev.ingresos, egresos: result.egresos ?? prev.egresos };
         if (scope === "shared") return { ...prev, subscriptions: result.subscriptions ?? prev.subscriptions, pipeline: result.pipeline ?? prev.pipeline, agents: result.agents ?? prev.agents, settings: result.settings ?? prev.settings, calendarEvents: result.calendarEvents ?? prev.calendarEvents, companyNotes: result.companyNotes ?? prev.companyNotes, pendingPayments: result.pendingPayments ?? prev.pendingPayments };
         if (scope === "proposals") return { ...prev, proposals: result.proposals ?? prev.proposals };
-        return { profile: result.profile ?? prev.profile, profiles: result.profiles ?? prev.profiles, leads: result.leads ?? prev.leads, pipeline: result.pipeline ?? [], ingresos: result.ingresos ?? prev.ingresos, egresos: result.egresos ?? prev.egresos, subscriptions: result.subscriptions ?? prev.subscriptions, agents: result.agents ?? prev.agents, settings: result.settings ?? prev.settings, proposals: result.proposals ?? prev.proposals, apiKeys: result.apiKeys ?? prev.apiKeys, calendarEvents: result.calendarEvents ?? prev.calendarEvents, companyNotes: result.companyNotes ?? prev.companyNotes, pendingPayments: result.pendingPayments ?? prev.pendingPayments, onboardingDocs: result.onboardingDocs ?? prev.onboardingDocs };
+        if (scope === "clientes") return { ...prev, clientes: result.clientes ?? prev.clientes, invoices: result.invoices ?? prev.invoices };
+        return { profile: result.profile ?? prev.profile, profiles: result.profiles ?? prev.profiles, leads: result.leads ?? prev.leads, pipeline: result.pipeline ?? [], ingresos: result.ingresos ?? prev.ingresos, egresos: result.egresos ?? prev.egresos, subscriptions: result.subscriptions ?? prev.subscriptions, agents: result.agents ?? prev.agents, settings: result.settings ?? prev.settings, proposals: result.proposals ?? prev.proposals, apiKeys: result.apiKeys ?? prev.apiKeys, calendarEvents: result.calendarEvents ?? prev.calendarEvents, companyNotes: result.companyNotes ?? prev.companyNotes, pendingPayments: result.pendingPayments ?? prev.pendingPayments, onboardingDocs: result.onboardingDocs ?? prev.onboardingDocs, clientes: result.clientes ?? prev.clientes, invoices: result.invoices ?? prev.invoices };
       });
       if (scope === "all") await refreshUsage();
     } finally { if (scope === "all") setLoading(false); }
+  }
+
+  async function refreshLeadJobs(currentSession = session) {
+    if (!currentSession?.access_token) return;
+    try {
+      const result = await fetchJson<{ ok: boolean; jobs: LeadJob[] }>("/api/leads/scrape", {
+        headers: { authorization: `Bearer ${currentSession.access_token}` },
+        cache: "no-store",
+      });
+      setLeadJobs(result.jobs || []);
+    } catch { /* silent */ }
   }
 
   async function persist(action: string, body: Record<string, unknown>, feedbackKey = action) {
@@ -198,7 +239,8 @@ export function CrmProvider({ children }: { children: React.ReactNode }) {
       else refreshUsage().finally(() => setLoading(false));
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: unknown, next: { access_token: string; user?: { email?: string } } | null) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: unknown, next: { access_token: string; user?: { email?: string } } | null) => {
+      if (event === "TOKEN_REFRESHED") { setSession(toSessionState(next)); return; }
       const nextSession = toSessionState(next);
       setSession(nextSession);
       if (nextSession) refreshData("all", nextSession);
@@ -256,9 +298,36 @@ export function CrmProvider({ children }: { children: React.ReactNode }) {
         const next = [sub, ...current.filter((s) => s.id !== sub.id)];
         return persistAndRaise("save-shared-state", { stateKey: STATE_KEYS.subscriptions, payload: next }, `save-subscription:${sub.id}`);
       },
+      saveCliente: (cliente) => persistAndRaise("save-cliente", { item: cliente }, `save-cliente:${cliente.id}`),
+      deleteCliente: (id) => persistAndRaise("delete-cliente", { id }, `delete-cliente:${id}`),
+      saveInvoice: (invoice) => persistAndRaise("save-invoice", { item: invoice }, `save-invoice:${invoice.id}`),
+      deleteInvoice: (id) => persistAndRaise("delete-invoice", { id }, `delete-invoice:${id}`),
+      markInvoicePaid: (id) => persistAndRaise("mark-invoice-paid", { id }, `mark-invoice-paid:${id}`),
+      generateMonthlyInvoices: (periodMonth) => persistAndReturn<{ created: number }>("generate-monthly-invoices", { period_month: periodMonth }, "generate-monthly-invoices"),
+      // Leads generator
+      leadJobs,
+      refreshLeadJobs: () => refreshLeadJobs(),
+      async enqueueScrapeJob(type, params) {
+        if (!session?.access_token) throw new Error("No active session");
+        const result = await fetchJson<{ ok: boolean; job: LeadJob }>("/api/leads/scrape", {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ type, params }),
+        });
+        setLeadJobs((prev) => [result.job, ...prev]);
+        return result.job;
+      },
+      // Vault — all on-demand, no global cache
+      vaultGetMeta: () => persistAndReturn<{ ok: boolean; meta: VaultMeta | null }>("vault-get-meta", {}, "vault-get-meta").then((r) => r.meta),
+      vaultSetMeta: (params) => persistAndRaise("vault-set-meta", { item: params }, "vault-set-meta"),
+      vaultList: () => persistAndReturn<{ ok: boolean; items: VaultItem[] }>("vault-list", {}, "vault-list").then((r) => r.items),
+      vaultSaveItem: (item) => persistAndRaise("vault-save-item", { item }, `vault-save-item:${item.id || "new"}`),
+      vaultDeleteItem: (id) => persistAndRaise("vault-delete-item", { id }, `vault-delete-item:${id}`),
+      vaultLogAudit: (auditAction, item_id) => persistAndRaise("vault-log-audit", { auditAction, item_id }, "vault-log-audit"),
+      vaultListAudit: () => persistAndReturn<{ ok: boolean; entries: import("@/types/crm").VaultAuditEntry[] }>("vault-list-audit", {}, "vault-list-audit").then((r) => r.entries),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [actionFeedback, authError, loading, session, state, usage],
+    [actionFeedback, authError, leadJobs, loading, session, state, usage],
   );
 
   return <CrmContext.Provider value={value}>{children}</CrmContext.Provider>;

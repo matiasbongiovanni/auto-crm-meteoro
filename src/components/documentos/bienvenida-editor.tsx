@@ -16,14 +16,15 @@ import type { OnboardingDoc } from "@/types/crm";
 type Props = {
   doc?: OnboardingDoc | null;
   clienteDefault?: string;
+  defaultTipo?: OnboardingDoc["tipo"];
   onSave: (d: OnboardingDoc) => Promise<void>;
   onClose: () => void;
 };
 
-export function BienvenidaEditor({ doc, clienteDefault = "", onSave, onClose }: Props) {
+export function BienvenidaEditor({ doc, clienteDefault = "", defaultTipo, onSave, onClose }: Props) {
   const [saving, setSaving] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [tipo, setTipo] = useState<OnboardingDoc["tipo"]>(doc?.tipo ?? "bienvenida");
+  const [tipo, setTipo] = useState<OnboardingDoc["tipo"]>(doc?.tipo ?? defaultTipo ?? "bienvenida");
   const [estado, setEstado] = useState<OnboardingDoc["estado"]>(doc?.estado ?? "borrador");
   const [notasCRM, setNotasCRM] = useState(doc?.notas ?? "");
 

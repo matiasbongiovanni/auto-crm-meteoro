@@ -27,7 +27,7 @@ npm run mcp        # Servidor MCP (Claude Desktop/Web)
 **Stack**: Next.js 16 · React 19 · TypeScript · Tailwind v4 · shadcn/ui · Supabase Auth + Postgres
 
 **Capa de datos híbrida:**
-- Normalizado en Supabase: `crm_leads`, `crm_ingresos`, `crm_egresos`, `crm_profiles`, `crm_api_keys`, `crm_onboarding_docs`, `crm_proposals`
+- Normalizado en Supabase: `crm_leads`, `crm_ingresos`, `crm_egresos`, `crm_profiles`, `crm_api_keys`, `crm_onboarding_docs`, `crm_proposals`, `crm_clientes`, `crm_invoices`
 - JSON en `crm_state` (namespaced por `state_key`): pipeline, agentes, suscripciones, calendario, notas por empresa, pagos pendientes
 
 **Diseño**: Dark monocromo negro/blanco. Primary = blanco (`#fafafa`). Tipografía: Geist Sans + Geist Mono (next/font/google). Tokens centralizados en `globals.css`. Sin toggle light/dark.
@@ -50,10 +50,11 @@ npm run mcp        # Servidor MCP (Claude Desktop/Web)
 ## Rutas
 
 ### App (protegidas por auth)
-- `(app)/dashboard/` — Dashboard de negocio (métricas, revenue, pipeline)
+- `(app)/dashboard/` — Dashboard de negocio (métricas, revenue, pipeline, widget cobros + alertas cartera)
 - `(app)/leads/` — Gestión de leads *(próxima fase)*
 - `(app)/pipeline/` — Kanban *(próxima fase)*
-- `(app)/finanzas/` — Ingresos/egresos/suscripciones/pagos *(próxima fase)*
+- `(app)/clientes/` — **Cartera de clientes 360** ✓ (implementado 2026-06-02) — tabla, filtros, drawer detalle, health score
+- `(app)/finanzas/` — Ingresos/egresos/suscripciones/pagos + **tab Cobranzas** ✓ (implementado 2026-06-02)
 - `(app)/tareas/` — Calendario y tareas *(próxima fase)*
 - `(app)/documentos/` — **Generador de documentos Meteoro** ✓ (implementado 2026-06-01)
 - `(app)/agentes/` — Config agentes prospector *(próxima fase)*
@@ -67,6 +68,9 @@ npm run mcp        # Servidor MCP (Claude Desktop/Web)
 - `/api/exchange` — Cotización USD (dolarapi.com)
 - `/api/usage` — Stats de uso Claude/Codex
 - `/api/mensajeria/sso` — Genera URL SSO para auto-login en Meteoro Chat (auth Supabase requerido)
+- `/api/leads/ingest` — Ingesta canónica de leads (API key scope `write`, no requiere sesión) → `crm_leads`
+- `/api/leads/scrape` — Encolar job de scraping (auth Supabase, gate admin) · GET lista jobs
+- `/api/leads/jobs` — Worker: GET jobs pendientes · PATCH actualizar estado (API key scope `read`/`write`)
 
 ## Variables de entorno
 
@@ -74,6 +78,10 @@ npm run mcp        # Servidor MCP (Claude Desktop/Web)
 NEXT_PUBLIC_SUPABASE_URL=https://<ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
+
+# Workers de scraping (no van en Next.js, van en la máquina que corre worker-jobs.py)
+CRM_URL=https://auto-crm-meteoro.vercel.app      # o http://localhost:3000 en dev
+CRM_WORKER_API_KEY=met_live_...                  # generar desde Admin → API Keys (scopes: read+write)
 
 # Meteoro Chat self-hosted (sección Mensajería)
 NEXT_PUBLIC_METEORO_CHAT_URL=http://localhost:3008
@@ -123,6 +131,17 @@ FASE 0.6 ✓ completada (2026-06-01):
 - Campo `datos jsonb` en `crm_proposals` y `crm_onboarding_docs`
 - ⚠️ Aplicar `supabase/migrations/2026-06-01-documentos-datos-jsonb.sql` en Supabase SQL Editor.
 
+FASE 1 ✓ completada (2026-06-02):
+- **Cartera de clientes** (`/clientes`): `ClientesPanel` + `ClienteDetalle` drawer — CRUD completo, health score, filtros status/salud/búsqueda, MRR por cliente, días a renovación
+- **Cobranzas**: `CobranzasPanel` como tab en Finanzas — generación mensual, estados (pendiente/pagada/vencida/anulada), marcar pagada → auto-crea `crm_ingresos`, PDF de factura branded
+- **Tipos**: `Cliente`, `Invoice`, `ClientStatus`, `ClientHealth`, `BillingCycle`, `InvoiceStatus` en `crm.ts`
+- **Backend**: acciones `save-cliente`, `delete-cliente`, `save-invoice`, `delete-invoice`, `mark-invoice-paid`, `generate-monthly-invoices` en `crm-server.ts` con RBAC
+- **Provider**: estado `clientes`/`invoices` + 6 acciones nuevas + scope `"clientes"` para refresh parcial
+- **Dashboard**: widget cobros del mes + alertas renovación/vencidos (visibles solo si hay clientes)
+- **Navegación**: item "Clientes" (ícono `Building2`) en Sidebar, MobileNav y AppHeader — role guard ≥ admin
+- **Documentos**: `render-factura.ts` — HTML autocontenido con branding Meteoro, export vía `window.print()`
+- **Migración pendiente**: `supabase/migrations/2026-06-02-clientes-cobranzas.sql` — aplicar con confirmación de Mati
+
 FASE 0.7 ✓ completada (2026-06-01):
 - **Settings**: flags `hideGoalAmount` y `revenueHiddenByDefault` en `Settings` type + `DEFAULT_SETTINGS` + `normalizeSettings`
 - **Dashboard**: `BusinessMetrics` acepta `defaultHidden` y `hideGoalAmount`; revenue oculto por defecto configurable desde Admin
@@ -136,4 +155,13 @@ FASE 0.7 ✓ completada (2026-06-01):
 - **MobileNav**: actualizado con NAV_ITEMS reales, role guard, logo Meteoro
 - **Migración SQL** (pendiente confirmación): `supabase/migrations/2026-06-01-consolidar-datos.sql`
 
-FASE 1, 2, 3 pendientes (leads, pipeline, agentes)
+FASE 2 ✓ completada (2026-06-04):
+- **Generador de Leads** (`/leads/generador`): 3 tabs — Formulario manual, Scrapling/Maps, Instagram seguidores
+- **Cola de jobs** (`crm_lead_jobs`): Supabase table + endpoints `/api/leads/scrape` (encolar, Supabase auth) + `/api/leads/jobs` (worker, API key)
+- **Ingesta canónica** (`/api/leads/ingest`): API key scope `write`, dedupe por hash, excepción teléfono para `origen=instagram`
+- **Tipos nuevos**: `LeadJob`, `LeadJobStatus`, `VaultItem`, `VaultMeta`, `VaultAuditEntry` en `crm.ts`; `Lead` extendido con `nicho`, `ciudad`, `pais`, `ig_handle`
+- **Bóveda zero-knowledge** (`/boveda`): solo CEO, passphrase maestra + WebCrypto AES-256-GCM, auto-lock 10 min, auditoría append-only
+- **Workers Python**: `~/tools/leads/worker-jobs.py` (loop de cola), `~/tools/leads/instagram-followers.py` (instagrapi), `scrape-leads.py` actualizado (canónico + legacy)
+- **Migración pendiente**: `supabase/migrations/2026-06-04-leads-boveda.sql` — aplicar con confirmación de Mati
+
+FASE 3, 4 pendientes (pipeline kanban, agentes config UI)

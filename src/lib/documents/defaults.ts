@@ -6,12 +6,13 @@ const DEFAULT_FOOTER = {
   instagram: "@meteoroar",
 };
 
-export function defaultPresupuesto(cliente = "", proyecto = ""): PresupuestoData {
+export function defaultPresupuesto(cliente = "", proyecto = "", numero = "001"): PresupuestoData {
   return {
     cliente,
     proyecto: proyecto || "Propuesta de servicios",
-    numero: "001",
+    numero,
     fecha: new Date().toISOString().slice(0, 10),
+    telefono: "",
     moneda: "ARS",
     validezDias: 15,
     incluyeIva: false,

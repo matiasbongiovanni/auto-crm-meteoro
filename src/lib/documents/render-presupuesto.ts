@@ -187,6 +187,19 @@ const DOC_CSS = `/* ============================================================
       margin-top: 2px
     }
 
+    .td-list {
+      margin: 5px 0 0 16px;
+      padding: 0;
+      font-weight: 400;
+      font-size: 12px;
+      color: #555;
+      line-height: 1.7
+    }
+
+    .td-list li {
+      margin-bottom: 1px
+    }
+
     /* totales */
     .doc-totals {
       margin-top: 0;
@@ -316,24 +329,63 @@ const DOC_CSS = `/* ============================================================
     /* ============================================================
    PRINT
    ============================================================ */
+    /* segunda hoja en pantalla */
+    .doc + .doc {
+      margin-top: 40px
+    }
+
+    /* segunda hoja siempre ocupa A4 completo */
+    .doc-p2 {
+      min-height: 1123px
+    }
+
+    /* título de la segunda hoja */
+    .doc-page2-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800;
+      font-size: 32px;
+      color: #000;
+      letter-spacing: .01em;
+      margin-bottom: 20px
+    }
+
+    /* ============================================================
+   PRINT
+   ============================================================ */
     @media print {
-      body {
+      html, body {
+        margin: 0;
+        padding: 0;
         background: #fff !important
       }
 
-      #panel-form {
-        display: none !important
-      }
-
-      #panel-preview {
-        padding: 0 !important;
-        background: #fff !important;
-        align-items: flex-start !important
-      }
-
       .doc {
+        display: block !important;
         box-shadow: none !important;
-        width: 100% !important
+        width: 100% !important;
+        min-height: 0 !important;
+        height: auto !important
+      }
+
+      .doc + .doc {
+        margin-top: 0 !important;
+        page-break-before: always
+      }
+
+      .doc-footer {
+        margin-top: 24px !important
+      }
+
+      /* hoja 2: flex para pinear el footer al fondo del A4 */
+      .doc-p2 {
+        display: flex !important;
+        flex-direction: column !important;
+        min-height: 297mm !important;
+        height: 297mm !important
+      }
+
+      .doc-p2 .doc-footer {
+        margin-top: auto !important
       }
 
       @page {
@@ -372,16 +424,35 @@ export function renderPresupuesto(data: PresupuestoData): string {
     ? `<div class="doc-notes"><div class="doc-notes-lbl">Notas y condiciones</div><div class="doc-notes-txt">${esc(data.notas)}</div></div>`
     : "";
 
-  const plansHtml = plansEnabled
-    ? `<div class="doc-subsection"><div class="doc-subsection-title">Planes mensuales</div>
-        <table class="doc-table"><thead><tr>
-          <th style="width:32px">#</th><th>Plan</th><th class="r" style="width:160px">Precio mensual</th>
-        </tr></thead><tbody>${data.planes
-          .map((pl, i) => `<tr>
-            <td>${i + 1}</td>
-            <td class="td-name">${esc(pl.nombre || `Plan ${i + 1}`)}${listHtml(pl.descripcion)}</td>
-            <td class="r">${fmt(pl.precio, mon)}</td>
-          </tr>`).join("")}</tbody></table></div>`
+  const plansPage = plansEnabled
+    ? `<div class="doc doc-p2">
+    <div class="doc-header">
+      <img src="${LOGO_DATA_URI}" alt="Meteoro" style="width: 125px; height: auto;">
+      <div class="doc-header-right">
+        <div class="dh-label">Planes mensuales</div>
+        <div class="dh-client">${esc(data.cliente) || "Cliente"}</div>
+      </div>
+    </div>
+    <div class="doc-body">
+      <div class="doc-page2-title">Planes mensuales</div>
+      <table class="doc-table"><thead><tr>
+        <th style="width:32px">#</th><th>Plan</th><th class="r" style="width:160px">Precio mensual</th>
+      </tr></thead><tbody>${data.planes
+        .map((pl, i) => `<tr>
+          <td>${i + 1}</td>
+          <td class="td-name">${esc(pl.nombre || `Plan ${i + 1}`)}${listHtml(pl.descripcion)}</td>
+          <td class="r">${fmt(pl.precio, mon)}</td>
+        </tr>`).join("")}</tbody></table>
+    </div>
+    <div class="doc-footer">
+      <div class="doc-footer-contacts">
+        <div class="dfc-item"><span class="dfc-lbl">Email</span><span class="dfc-val">${esc(data.footer.email)}</span></div>
+        <div class="dfc-item"><span class="dfc-lbl">Teléfono</span><span class="dfc-val">${esc(data.footer.telefono)}</span></div>
+        <div class="dfc-item"><span class="dfc-lbl">Instagram</span><span class="dfc-val">${esc(data.footer.instagram)}</span></div>
+      </div>
+      <img src="${LOGO_DATA_URI}" alt="Meteoro" style="width: 75px; height: auto;">
+    </div>
+  </div>`
     : "";
 
   return `<!DOCTYPE html>
@@ -427,7 +498,6 @@ export function renderPresupuesto(data: PresupuestoData): string {
         <tbody>${rows}</tbody>
       </table>
       <div class="doc-totals">${tots}</div>
-      ${plansHtml}
       ${notasHtml}
       <div class="doc-validez">Esta cotización tiene validez de ${data.validezDias} días hábiles desde la fecha de emisión.</div>
     </div>
@@ -441,6 +511,7 @@ export function renderPresupuesto(data: PresupuestoData): string {
       <img src="${LOGO_DATA_URI}" alt="Meteoro" style="width: 75px; height: auto;">
     </div>
 </div>
+${plansPage}
 </body>
 </html>`;
 }

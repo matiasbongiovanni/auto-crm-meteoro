@@ -60,6 +60,33 @@ export const ACTIVITY_TYPE_CONFIG: Record<
   follow_up: { label: "Seguimiento", icon: "Clock" },
 };
 
+// ─── Clientes / Cartera ────────────────────────────────────────────────────────
+export const CLIENT_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  activo:  { label: "Activo",  color: "text-[var(--success)]" },
+  pausado: { label: "Pausado", color: "text-[var(--warning)]" },
+  churned: { label: "Perdido", color: "text-muted-foreground" },
+};
+
+export const CLIENT_HEALTH_CONFIG: Record<string, { label: string; color: string; dot: string }> = {
+  sano:     { label: "Sano",     color: "text-[var(--success)]",  dot: "bg-[var(--success)]" },
+  atencion: { label: "Atención", color: "text-[var(--warning)]",  dot: "bg-[var(--warning)]" },
+  riesgo:   { label: "Riesgo",   color: "text-destructive",       dot: "bg-destructive" },
+};
+
+export const INVOICE_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  pendiente: { label: "Pendiente", color: "text-muted-foreground" },
+  pagada:    { label: "Pagada",    color: "text-[var(--success)]" },
+  vencida:   { label: "Vencida",   color: "text-destructive" },
+  anulada:   { label: "Anulada",   color: "text-muted-foreground/50" },
+};
+
+export const BILLING_CYCLE_LABELS: Record<string, string> = {
+  mensual:    "Mensual",
+  trimestral: "Trimestral",
+  anual:      "Anual",
+  unico:      "Pago único",
+};
+
 // ─── Formatting ────────────────────────────────────────────────────────────────
 export function formatCurrency(cents: number): string {
   return new Intl.NumberFormat("es-AR", {

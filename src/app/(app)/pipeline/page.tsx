@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors,
   type DragStartEvent, type DragEndEvent,
@@ -24,6 +24,7 @@ const STAGES: { id: PipelineStage; label: string; accent: string }[] = [
   { id: "contacted", label: "Contactado", accent: "border-t-[var(--chart-4)]" },
   { id: "in_progress", label: "En progreso", accent: "border-t-primary" },
   { id: "closed", label: "Cerrado", accent: "border-t-[var(--success)]" },
+  { id: "recalentar", label: "Recalentar", accent: "border-t-orange-400/60" },
 ];
 
 function CardItem({ card, onEdit, onDelete }: { card: PipelineCard; onEdit: () => void; onDelete: () => void }) {
@@ -114,6 +115,39 @@ export default function PipelinePage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<PipelineCard | null>(null);
+  const migratingRef = useRef(false);
+
+  useEffect(() => {
+    if (migratingRef.current || state.pipeline.length === 0 || state.proposals.length === 0) return;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const staleStages: PipelineStage[] = ["in_progress", "contacted", "lead"];
+    let changed = false;
+    const updated = state.pipeline.map((card) => {
+      if (!staleStages.includes(card.stage)) return card;
+      const match = state.proposals.find(
+        (p) =>
+          p.cliente === card.title &&
+          (p.estado === "enviado" || p.estado === "en_negociacion") &&
+          p.datos != null
+      );
+      if (!match) return card;
+      const datos = match.datos as import("@/lib/documents/types").PresupuestoData | null;
+      if (!datos?.fecha || !datos?.validezDias) return card;
+      const expiry = new Date(datos.fecha + "T00:00:00");
+      expiry.setDate(expiry.getDate() + (datos.validezDias ?? 15));
+      if (expiry < today) {
+        changed = true;
+        return { ...card, stage: "recalentar" as PipelineStage, updated_at: new Date().toISOString() };
+      }
+      return card;
+    });
+    if (changed) {
+      migratingRef.current = true;
+      savePipeline(updated).finally(() => { migratingRef.current = false; });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.proposals, state.pipeline]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 

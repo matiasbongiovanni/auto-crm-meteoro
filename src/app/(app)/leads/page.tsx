@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Pencil, Trash2, Flame, Thermometer, Snowflake } from "lucide-react";
+import Link from "next/link";
+import { Plus, Pencil, Trash2, Flame, Thermometer, Snowflake, Zap } from "lucide-react";
 import { useCrm } from "@/components/crm/provider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -143,9 +144,16 @@ export default function LeadsPage() {
             </button>
           ))}
         </div>
-        <Button size="sm" onClick={() => setOpen(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5">
-          <Plus className="h-3.5 w-3.5" /> Nuevo lead
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" asChild>
+            <Link href="/leads/generador">
+              <Zap className="h-3.5 w-3.5 mr-1.5" /> Generar
+            </Link>
+          </Button>
+          <Button size="sm" onClick={() => setOpen(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5">
+            <Plus className="h-3.5 w-3.5" /> Nuevo lead
+          </Button>
+        </div>
       </div>
 
       {filtered.length === 0 ? (

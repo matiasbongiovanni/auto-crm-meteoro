@@ -4,7 +4,7 @@ import { getSupabaseServerClient } from "@/lib/server-supabase";
 import { getPublicSupabaseEnv } from "@/lib/supabase-env";
 import { generateApiKey } from "@/lib/api-auth";
 import { deleteProposalRecord, listProposals, saveProposalRecord } from "@/lib/proposals-store";
-import type { Agent, ApiKey, CalendarEvent, CompanyNote, OnboardingDoc, PendingPayment, PipelineCard, Profile, Proposal, Settings, Subscription } from "@/types/crm";
+import type { Agent, ApiKey, CalendarEvent, Cliente, CompanyNote, Invoice, OnboardingDoc, PendingPayment, PipelineCard, Profile, Proposal, Settings, Subscription } from "@/types/crm";
 
 function json(body: unknown, status = 200) {
   return NextResponse.json(body, { status });
@@ -191,6 +191,14 @@ export async function handleCrmRequest(request: NextRequest) {
         return json({ ok: true, proposals: await listProposals(admin, workspaceId, sharedState) });
       }
 
+      if (scope === "clientes") {
+        const [clientesRes, invoicesRes] = await Promise.all([
+          admin.from("crm_clientes").select("*").eq("workspace_id", DEFAULT_WORKSPACE_ID).order("nombre"),
+          admin.from("crm_invoices").select("*").eq("workspace_id", DEFAULT_WORKSPACE_ID).order("fecha_emision", { ascending: false }),
+        ]).catch(() => [{ data: [] }, { data: [] }]);
+        return json({ ok: true, clientes: clientesRes.data || [], invoices: invoicesRes.data || [] });
+      }
+
       const [leads, ingresos, egresos, profiles, apiKeys, onboardingDocs] = await Promise.all([
         admin.from("crm_leads").select("*").order("updated_at", { ascending: false }),
         admin.from("crm_ingresos").select("*").eq("user_id", user.id).order("fecha", { ascending: false }),
@@ -199,6 +207,11 @@ export async function handleCrmRequest(request: NextRequest) {
         admin.from("crm_api_keys").select("id,name,key_prefix,scopes,last_used_at,created_at,revoked_at").eq("workspace_id", DEFAULT_WORKSPACE_ID).order("created_at", { ascending: false }),
         admin.from("crm_onboarding_docs").select("*").eq("workspace_id", DEFAULT_WORKSPACE_ID).order("created_at", { ascending: false }),
       ]);
+
+      const [clientesRes, invoicesRes] = await Promise.all([
+        admin.from("crm_clientes").select("*").eq("workspace_id", DEFAULT_WORKSPACE_ID).order("nombre"),
+        admin.from("crm_invoices").select("*").eq("workspace_id", DEFAULT_WORKSPACE_ID).order("fecha_emision", { ascending: false }),
+      ]).catch(() => [{ data: [] }, { data: [] }]);
 
       const state = await loadWorkspaceState(admin, workspaceId);
       const proposals = await listProposals(admin, workspaceId, state);
@@ -220,6 +233,8 @@ export async function handleCrmRequest(request: NextRequest) {
         companyNotes: normalizeArray<CompanyNote>(sharedState.get("exp2_company_notes")),
         pendingPayments: normalizeArray<PendingPayment>(sharedState.get("exp2_pending_payments")),
         onboardingDocs: (onboardingDocs.data || []) as OnboardingDoc[],
+        clientes: (clientesRes.data || []) as Cliente[],
+        invoices: (invoicesRes.data || []) as Invoice[],
         legacyState: Object.fromEntries(state.entries()),
       });
     }
@@ -281,7 +296,7 @@ export async function handleCrmRequest(request: NextRequest) {
     }
 
     if (body.action === "save-lead") {
-      const row = { id: payload.id, user_id: user.id, nombre: payload.nombre || "", origen: payload.origen || "", estado: payload.estado || "nuevo", accion: payload.accion || "", notas: payload.notas || "", fase: Number(payload.fase || 1), fecha: payload.fecha || new Date().toISOString().slice(0, 10), telefono: payload.telefono || null, empresa: payload.empresa || null, temperatura: payload.temperatura || "frio", updated_at: new Date().toISOString() };
+      const row = { id: payload.id, user_id: user.id, workspace_id: workspaceId, nombre: payload.nombre || "", origen: payload.origen || "", estado: payload.estado || "nuevo", accion: payload.accion || "", notas: payload.notas || "", fase: Number(payload.fase || 1), fecha: payload.fecha || new Date().toISOString().slice(0, 10), telefono: payload.telefono || null, email: payload.email || null, empresa: payload.empresa || null, temperatura: payload.temperatura || "frio", canal_contacto: payload.canal_contacto || null, nicho: payload.nicho || null, ciudad: payload.ciudad || null, pais: payload.pais || null, ig_handle: payload.ig_handle || null, updated_at: new Date().toISOString() };
       const { error } = await admin.from("crm_leads").upsert(row);
       if (error) return json({ error: error.message }, 500);
       return json({ ok: true });
@@ -444,6 +459,245 @@ export async function handleCrmRequest(request: NextRequest) {
       const { error } = await admin.from("crm_state").upsert({ user_id: workspaceId, state_key: "exp2_pending_payments", payload: next, updated_at: new Date().toISOString() });
       if (error) return json({ error: error.message }, 500);
       return json({ ok: true });
+    }
+
+    if (body.action === "save-cliente") {
+      if (roleRank(currentRole) < 2) return json({ error: "Forbidden" }, 403);
+      const clienteId = String(payload.id || crypto.randomUUID());
+      const now = new Date().toISOString();
+      const row = {
+        id: clienteId,
+        workspace_id: DEFAULT_WORKSPACE_ID,
+        user_id: user.id,
+        nombre: payload.nombre || "",
+        empresa: payload.empresa || null,
+        contacto: payload.contacto || null,
+        telefono: payload.telefono || null,
+        email: payload.email || null,
+        status: (["activo", "pausado", "churned"].includes(payload.status) ? payload.status : "activo") as string,
+        producto: payload.producto || "",
+        fee_usd: Number(payload.fee_usd) || 0,
+        billing_cycle: (["mensual", "trimestral", "anual", "unico"].includes(payload.billing_cycle) ? payload.billing_cycle : "mensual") as string,
+        fecha_alta: payload.fecha_alta || now.slice(0, 10),
+        fecha_renovacion: payload.fecha_renovacion || null,
+        owner: payload.owner || null,
+        contexto_path: payload.contexto_path || null,
+        notas: payload.notas || null,
+        updated_at: now,
+        created_at: payload.created_at || now,
+      };
+      const { error } = await admin.from("crm_clientes").upsert(row);
+      if (error) return json({ error: error.message }, 500);
+      return json({ ok: true });
+    }
+
+    if (body.action === "delete-cliente") {
+      if (roleRank(currentRole) < 2) return json({ error: "Forbidden" }, 403);
+      const { error } = await admin.from("crm_clientes").delete().eq("workspace_id", DEFAULT_WORKSPACE_ID).eq("id", body.id);
+      if (error) return json({ error: error.message }, 500);
+      return json({ ok: true });
+    }
+
+    if (body.action === "save-invoice") {
+      if (roleRank(currentRole) < 2) return json({ error: "Forbidden" }, 403);
+      const invoiceId = String(payload.id || crypto.randomUUID());
+      const now = new Date().toISOString();
+      const row = {
+        id: invoiceId,
+        workspace_id: DEFAULT_WORKSPACE_ID,
+        cliente_id: payload.cliente_id,
+        concepto: payload.concepto || "",
+        period_month: payload.period_month || now.slice(0, 7),
+        monto_usd: Number(payload.monto_usd) || 0,
+        status: (["pendiente", "pagada", "vencida", "anulada"].includes(payload.status) ? payload.status : "pendiente") as string,
+        fecha_emision: payload.fecha_emision || now.slice(0, 10),
+        fecha_vencimiento: payload.fecha_vencimiento || now.slice(0, 10),
+        fecha_pago: payload.fecha_pago || null,
+        ingreso_id: payload.ingreso_id || null,
+        notas: payload.notas || null,
+        updated_at: now,
+        created_at: payload.created_at || now,
+      };
+      const { error } = await admin.from("crm_invoices").upsert(row);
+      if (error) return json({ error: error.message }, 500);
+      return json({ ok: true });
+    }
+
+    if (body.action === "delete-invoice") {
+      if (roleRank(currentRole) < 2) return json({ error: "Forbidden" }, 403);
+      const { error } = await admin.from("crm_invoices").delete().eq("workspace_id", DEFAULT_WORKSPACE_ID).eq("id", body.id);
+      if (error) return json({ error: error.message }, 500);
+      return json({ ok: true });
+    }
+
+    if (body.action === "mark-invoice-paid") {
+      if (roleRank(currentRole) < 2) return json({ error: "Forbidden" }, 403);
+      const invoiceId = String(body.id || "");
+      const { data: invoiceData } = await admin.from("crm_invoices").select("*").eq("id", invoiceId).single();
+      if (!invoiceData) return json({ error: "Factura no encontrada" }, 404);
+      const invoice = invoiceData as Invoice & { cliente_id: string };
+      const { data: clienteData } = await admin.from("crm_clientes").select("nombre,empresa").eq("id", invoice.cliente_id).single();
+      const clienteNombre = (clienteData as { nombre?: string; empresa?: string } | null)?.nombre || "Cliente";
+      const now = new Date();
+      const nowIso = now.toISOString();
+      const ingresoRow = {
+        id: crypto.randomUUID(),
+        user_id: user.id,
+        concepto: `Factura - ${clienteNombre} - ${invoice.concepto || invoice.period_month}`,
+        persona: clienteNombre,
+        fecha: nowIso.slice(0, 10),
+        tipo: "ingreso",
+        flow_kind: "mensualidad",
+        payment_destination: "",
+        usd_type: "blue",
+        period_month: invoice.period_month,
+        ars: null,
+        usd: invoice.monto_usd,
+        eur: null,
+        exchange_snapshot: null,
+        updated_at: nowIso,
+      };
+      const { error: ingresoErr } = await admin.from("crm_ingresos").upsert(ingresoRow);
+      if (ingresoErr) return json({ error: ingresoErr.message }, 500);
+      const { error: invoiceErr } = await admin.from("crm_invoices").update({ status: "pagada", fecha_pago: nowIso.slice(0, 10), ingreso_id: ingresoRow.id, updated_at: nowIso }).eq("id", invoiceId);
+      if (invoiceErr) return json({ error: invoiceErr.message }, 500);
+      return json({ ok: true });
+    }
+
+    if (body.action === "generate-monthly-invoices") {
+      if (roleRank(currentRole) < 2) return json({ error: "Forbidden" }, 403);
+      const periodMonth = String(body.period_month || new Date().toISOString().slice(0, 7));
+      const [y, m] = periodMonth.split("-").map(Number);
+      const vencimiento = new Date(y, m, 10).toISOString().slice(0, 10);
+      const { data: clientes } = await admin.from("crm_clientes").select("*").eq("workspace_id", DEFAULT_WORKSPACE_ID).eq("status", "activo");
+      const { data: existingInvoices } = await admin.from("crm_invoices").select("id,cliente_id").eq("workspace_id", DEFAULT_WORKSPACE_ID).eq("period_month", periodMonth);
+      const existingClienteIds = new Set((existingInvoices || []).map((i: { cliente_id: string }) => i.cliente_id));
+      const now = new Date().toISOString();
+      const toCreate = (clientes || []).filter((c: Cliente) => c.billing_cycle === "mensual" && !existingClienteIds.has(c.id));
+      if (toCreate.length === 0) return json({ ok: true, created: 0 });
+      const rows = toCreate.map((c: Cliente) => ({
+        id: crypto.randomUUID(),
+        workspace_id: DEFAULT_WORKSPACE_ID,
+        cliente_id: c.id,
+        concepto: `Mensualidad ${periodMonth} - ${c.producto || c.nombre}`,
+        period_month: periodMonth,
+        monto_usd: c.fee_usd,
+        status: "pendiente",
+        fecha_emision: now.slice(0, 10),
+        fecha_vencimiento: vencimiento,
+        created_at: now,
+        updated_at: now,
+      }));
+      const { error } = await admin.from("crm_invoices").insert(rows);
+      if (error) return json({ error: error.message }, 500);
+      return json({ ok: true, created: rows.length });
+    }
+
+    // ─── Bóveda — solo CEO ────────────────────────────────────────────────────
+
+    if (body.action === "vault-get-meta") {
+      if (currentRole !== "ceo") return json({ error: "Forbidden" }, 403);
+      const { data } = await admin
+        .from("crm_vault_meta")
+        .select("*")
+        .eq("workspace_id", workspaceId)
+        .maybeSingle();
+      return json({ ok: true, meta: data || null });
+    }
+
+    if (body.action === "vault-set-meta") {
+      if (currentRole !== "ceo") return json({ error: "Forbidden" }, 403);
+      if (!payload.kdf_params || !payload.verifier || !payload.verifier_iv)
+        return json({ error: "kdf_params, verifier y verifier_iv son requeridos" }, 400);
+      const now = new Date().toISOString();
+      const row = {
+        workspace_id: workspaceId,
+        kdf: "pbkdf2",
+        kdf_params: payload.kdf_params,
+        verifier: String(payload.verifier),
+        verifier_iv: String(payload.verifier_iv),
+        updated_at: now,
+        created_at: now,
+      };
+      const { error } = await admin.from("crm_vault_meta").upsert(row, { onConflict: "workspace_id" });
+      if (error) return json({ error: error.message }, 500);
+      return json({ ok: true });
+    }
+
+    if (body.action === "vault-list") {
+      if (currentRole !== "ceo") return json({ error: "Forbidden" }, 403);
+      const { data, error } = await admin
+        .from("crm_vault_items")
+        .select("id,nombre,categoria,cliente,ciphertext,iv,url,created_at,updated_at")
+        .eq("workspace_id", workspaceId)
+        .order("categoria")
+        .order("nombre");
+      if (error) return json({ error: error.message }, 500);
+      return json({ ok: true, items: data || [] });
+    }
+
+    if (body.action === "vault-save-item") {
+      if (currentRole !== "ceo") return json({ error: "Forbidden" }, 403);
+      if (!payload.nombre || !payload.ciphertext || !payload.iv)
+        return json({ error: "nombre, ciphertext e iv son requeridos" }, 400);
+      const now = new Date().toISOString();
+      const row = {
+        id: String(payload.id || crypto.randomUUID()),
+        workspace_id: workspaceId,
+        nombre: String(payload.nombre),
+        categoria: String(payload.categoria || "general"),
+        cliente: String(payload.cliente || ""),
+        ciphertext: String(payload.ciphertext),
+        iv: String(payload.iv),
+        url: String(payload.url || ""),
+        created_by: user.id,
+        updated_at: now,
+        created_at: payload.created_at || now,
+      };
+      const { error } = await admin.from("crm_vault_items").upsert(row);
+      if (error) return json({ error: error.message }, 500);
+      return json({ ok: true });
+    }
+
+    if (body.action === "vault-delete-item") {
+      if (currentRole !== "ceo") return json({ error: "Forbidden" }, 403);
+      const { error } = await admin
+        .from("crm_vault_items")
+        .delete()
+        .eq("workspace_id", workspaceId)
+        .eq("id", body.id);
+      if (error) return json({ error: error.message }, 500);
+      return json({ ok: true });
+    }
+
+    if (body.action === "vault-log-audit") {
+      if (currentRole !== "ceo") return json({ error: "Forbidden" }, 403);
+      const VALID_AUDIT_ACTIONS = new Set(["unlock", "view", "create", "update", "delete"]);
+      if (!VALID_AUDIT_ACTIONS.has(body.auditAction))
+        return json({ error: "auditAction inválido" }, 400);
+      const row = {
+        id: crypto.randomUUID(),
+        workspace_id: workspaceId,
+        actor_email: user.email || "",
+        action: String(body.auditAction),
+        item_id: body.item_id ? String(body.item_id) : null,
+        created_at: new Date().toISOString(),
+      };
+      const { error } = await admin.from("crm_vault_audit").insert(row);
+      if (error) return json({ error: error.message }, 500);
+      return json({ ok: true });
+    }
+
+    if (body.action === "vault-list-audit") {
+      if (currentRole !== "ceo") return json({ error: "Forbidden" }, 403);
+      const { data, error } = await admin
+        .from("crm_vault_audit")
+        .select("*")
+        .eq("workspace_id", workspaceId)
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (error) return json({ error: error.message }, 500);
+      return json({ ok: true, entries: data || [] });
     }
 
     return json({ error: "Unknown action" }, 400);

@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
 const PUBLIC_PATHS = ["/login", "/auth"];
-const PUBLIC_API_PREFIXES = ["/api/crm/sync", "/api/crm/update-from-whatsapp", "/api/v1/", "/api/webhook", "/api/exchange"];
+const PUBLIC_API_PREFIXES = ["/api/crm/sync", "/api/crm/update-from-whatsapp", "/api/v1/", "/api/webhook", "/api/exchange", "/api/widget", "/api/widget-script", "/api/widget-preview", "/api/leads/ingest", "/api/leads/jobs"];
 const ALLOWED_EMAILS = ["matiasweschta@gmail.com"];
 
 function isPublicPath(pathname: string): boolean {

@@ -25,14 +25,70 @@ export type Lead = {
   fase: number;
   fecha: string;
   telefono?: string;
+  email?: string;
   empresa?: string;
   temperatura?: LeadTemperatura;
   ultimo_contacto?: string;
   intentos_contacto?: number;
   canal_contacto?: LeadCanal;
+  nicho?: string;
+  ciudad?: string;
+  pais?: string;
+  ig_handle?: string;
 };
 
-export type PipelineStage = "lead" | "contacted" | "in_progress" | "closed";
+export type LeadJobType = "maps" | "instagram";
+export type LeadJobStatus = "pending" | "running" | "done" | "error";
+
+export type LeadJob = {
+  id: string;
+  workspace_id: string;
+  type: LeadJobType;
+  params: Record<string, unknown>;
+  status: LeadJobStatus;
+  result_count: number;
+  error_msg?: string;
+  created_by?: string;
+  created_at: string;
+  started_at?: string;
+  finished_at?: string;
+};
+
+export type VaultItem = {
+  id: string;
+  workspace_id?: string;
+  nombre: string;
+  categoria: string;
+  cliente: string;
+  ciphertext: string;
+  iv: string;
+  url: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type VaultMeta = {
+  workspace_id: string;
+  kdf: "pbkdf2";
+  kdf_params: { salt: string; iterations: number };
+  verifier: string;
+  verifier_iv: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type VaultAuditAction = "unlock" | "view" | "create" | "update" | "delete";
+
+export type VaultAuditEntry = {
+  id: string;
+  workspace_id: string;
+  actor_email: string;
+  action: VaultAuditAction;
+  item_id?: string;
+  created_at: string;
+};
+
+export type PipelineStage = "lead" | "contacted" | "in_progress" | "closed" | "recalentar";
 
 export type PipelineCard = {
   id: string;
@@ -227,6 +283,48 @@ export type PendingPayment = {
   cobrado_registered_at?: string | null;
 };
 
+export type ClientStatus = "activo" | "pausado" | "churned";
+export type ClientHealth = "sano" | "atencion" | "riesgo";
+export type BillingCycle = "mensual" | "trimestral" | "anual" | "unico";
+
+export type Cliente = {
+  id: string;
+  nombre: string;
+  empresa?: string;
+  contacto?: string;
+  telefono?: string;
+  email?: string;
+  status: ClientStatus;
+  producto: string;
+  fee_usd: number;
+  billing_cycle: BillingCycle;
+  fecha_alta: string;
+  fecha_renovacion?: string;
+  owner?: string;
+  contexto_path?: string;
+  notas?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type InvoiceStatus = "pendiente" | "pagada" | "vencida" | "anulada";
+
+export type Invoice = {
+  id: string;
+  cliente_id: string;
+  concepto: string;
+  period_month: string;
+  monto_usd: number;
+  status: InvoiceStatus;
+  fecha_emision: string;
+  fecha_vencimiento: string;
+  fecha_pago?: string;
+  ingreso_id?: string;
+  notas?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
 export type CrmState = {
   profile: Profile | null;
   profiles: Profile[];
@@ -243,4 +341,6 @@ export type CrmState = {
   companyNotes: CompanyNote[];
   pendingPayments: PendingPayment[];
   onboardingDocs: OnboardingDoc[];
+  clientes: Cliente[];
+  invoices: Invoice[];
 };

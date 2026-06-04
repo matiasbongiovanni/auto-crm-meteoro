@@ -1,10 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useCrm } from "@/components/crm/provider";
 import { BusinessMetrics } from "@/components/dashboard/BusinessMetrics";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { monthKey, monthlySubscriptionCost, filterByMonth } from "@/lib/finance";
+import { totalCobrado, totalPorCobrar, totalVencido, diasARenovacion } from "@/lib/clientes";
+import { formatUsd } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 const SCOPES = [
@@ -97,6 +100,63 @@ export default function DashboardPage() {
 
       {/* Revenue chart */}
       <RevenueChart ingresos={state.ingresos} egresos={state.egresos} subscriptions={state.subscriptions} />
+
+      {/* Cobros + Alertas */}
+      {(state.clientes.length > 0 || state.invoices.length > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {/* Cobros del mes */}
+          <div className="metric-card p-5">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Cobros {currentMonth}</p>
+              <Link href="/finanzas" className="text-[11px] text-muted-foreground hover:text-foreground">Ver →</Link>
+            </div>
+            <div className="space-y-2">
+              {[
+                { label: "Cobrado", value: totalCobrado(state.invoices, currentMonth), color: "text-[var(--success)]" },
+                { label: "Por cobrar", value: totalPorCobrar(state.invoices, currentMonth), color: "text-[var(--warning)]" },
+                { label: "Vencido", value: totalVencido(state.invoices), color: "text-destructive" },
+              ].map(({ label, value, color }) => (
+                <div key={label} className="flex items-center justify-between">
+                  <span className="text-[12px] text-muted-foreground">{label}</span>
+                  <span className={cn("text-[13px] font-semibold", color)}>{formatUsd(value)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Alertas de renovación y vencidos */}
+          <div className="metric-card p-5">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Alertas de cartera</p>
+              <Link href="/clientes" className="text-[11px] text-muted-foreground hover:text-foreground">Ver →</Link>
+            </div>
+            <div className="space-y-2">
+              {state.clientes
+                .filter((c) => { const d = diasARenovacion(c); return d !== null && d >= 0 && d <= 14; })
+                .slice(0, 2)
+                .map((c) => (
+                  <div key={c.id} className="flex items-center justify-between">
+                    <span className="text-[12px] text-muted-foreground truncate">{c.nombre}</span>
+                    <span className="text-[11px] font-semibold text-[var(--warning)] ml-2 shrink-0">Renueva en {diasARenovacion(c)}d</span>
+                  </div>
+                ))}
+              {state.invoices.filter((i) => i.status === "vencida").slice(0, 2).map((inv) => {
+                const nombre = state.clientes.find((c) => c.id === inv.cliente_id)?.nombre || "—";
+                return (
+                  <div key={inv.id} className="flex items-center justify-between">
+                    <span className="text-[12px] text-muted-foreground truncate">{nombre}</span>
+                    <span className="text-[11px] font-semibold text-destructive ml-2 shrink-0">Factura vencida</span>
+                  </div>
+                );
+              })}
+              {state.clientes.filter((c) => { const d = diasARenovacion(c); return d !== null && d >= 0 && d <= 14; }).length === 0 &&
+               state.invoices.filter((i) => i.status === "vencida").length === 0 && (
+                <p className="text-[13px] text-muted-foreground">Sin alertas</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Pipeline + Leads summary */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

@@ -35,6 +35,7 @@ export type PresupuestoData = {
   notas: string;
   preparadoPor: string;
   footer: Footer;
+  telefono?: string;
 };
 
 // ─── Bienvenida ──────────────────────────────────────────────────────────────

@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { filterByMonth, monthKey, monthlySubscriptionCost, prevMonth, nextMonth, last24Months } from "@/lib/finance";
 import type { FinanceRow, Subscription, PendingPayment } from "@/types/crm";
 import { FinanceMetrics } from "@/components/dashboard/FinanceMetrics";
+import { CobranzasPanel } from "@/components/crm/CobranzasPanel";
 
 const USD_TYPES = ["blue", "oficial", "mep", "ccl", "crypto"];
 const FLOW_KINDS_ING = ["mensualidad", "adelanto", "cobro_pendiente", "otro"];
@@ -334,7 +335,38 @@ export default function FinanzasPage() {
   const [editingPay, setEditingPay] = useState<PendingPayment | null>(null);
 
   const mrr = monthlySubscriptionCost(state.subscriptions, month);
-  const pendingSum = state.pendingPayments.filter((p) => p.estado !== "cobrado").reduce((a, p) => a + (p.monto_usd || 0), 0);
+
+  // Mensualidades automáticas: clientes activos con billing mensual sin ingreso registrado este mes
+  const ingresosDelMes = filterByMonth(state.ingresos, month);
+  const clientesConIngresoMes = new Set(
+    ingresosDelMes.map((r) => r.persona?.toLowerCase().trim()).filter(Boolean)
+  );
+  const mensualidadesAuto: PendingPayment[] = state.clientes
+    .filter((c) => c.status === "activo" && c.billing_cycle === "mensual")
+    .filter((c) => !clientesConIngresoMes.has(c.nombre.toLowerCase().trim()))
+    .map((c) => ({
+      id: `auto-${c.id}`,
+      cliente: c.nombre,
+      concepto: `Mensualidad ${month}`,
+      monto_usd: c.fee_usd,
+      fecha_entrega: `${month}-01`,
+      fecha_vencimiento: null,
+      estado: "pendiente" as const,
+      notas: "Generado automáticamente desde Clientes",
+      created_at: new Date().toISOString(),
+    }));
+
+  // Pagos manuales + auto, excluyendo duplicados por nombre de cliente
+  const clientesEnManuales = new Set(
+    state.pendingPayments
+      .filter((p) => p.estado !== "cobrado")
+      .map((p) => p.cliente.toLowerCase().trim())
+  );
+  const autoFiltrados = mensualidadesAuto.filter(
+    (a) => !clientesEnManuales.has(a.cliente.toLowerCase().trim())
+  );
+  const todosLosPendientes = [...state.pendingPayments, ...autoFiltrados];
+  const pendingSum = todosLosPendientes.filter((p) => p.estado !== "cobrado").reduce((a, p) => a + (p.monto_usd || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -342,12 +374,17 @@ export default function FinanzasPage() {
       <Tabs defaultValue="finanzas">
         <TabsList className="bg-muted/30 border border-border/40">
           <TabsTrigger value="finanzas" className="text-[12px]">Ingresos / Egresos</TabsTrigger>
+          <TabsTrigger value="cobranzas" className="text-[12px]">Cobranzas</TabsTrigger>
           <TabsTrigger value="suscripciones" className="text-[12px]">Suscripciones</TabsTrigger>
           <TabsTrigger value="pagos" className="text-[12px]">Pagos pendientes</TabsTrigger>
         </TabsList>
 
         <TabsContent value="finanzas" className="mt-4">
           <FinanceSection month={month} setMonth={setMonth} />
+        </TabsContent>
+
+        <TabsContent value="cobranzas" className="mt-4">
+          <CobranzasPanel />
         </TabsContent>
 
         <TabsContent value="suscripciones" className="mt-4 space-y-4">
@@ -399,26 +436,38 @@ export default function FinanzasPage() {
             </Button>
           </div>
           <div className="space-y-2">
-            {state.pendingPayments.map((p) => (
-              <div key={p.id} className={cn("metric-card rounded-lg p-4 flex items-center justify-between gap-3", p.estado === "cobrado" && "opacity-50")}>
-                <div>
-                  <p className="font-medium text-foreground/90">{p.cliente}</p>
-                  <p className="text-[11px] text-muted-foreground">{p.concepto} · entrega {p.fecha_entrega}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <p className="font-bold text-[var(--warning)]">USD {p.monto_usd?.toFixed(0) ?? "—"}</p>
-                    <Badge variant="outline" className={cn("text-[10px] mt-0.5",
-                      p.estado === "cobrado" ? "border-[var(--success)]/30 text-[var(--success)]" :
-                        p.estado === "parcial" ? "border-[var(--warning)]/30 text-[var(--warning)]" : "border-border/40 text-muted-foreground")}>
-                      {p.estado}
-                    </Badge>
+            {todosLosPendientes.map((p) => {
+              const isAuto = p.id.startsWith("auto-");
+              return (
+                <div key={p.id} className={cn("metric-card rounded-lg p-4 flex items-center justify-between gap-3", p.estado === "cobrado" && "opacity-50")}>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-foreground/90">{p.cliente}</p>
+                      {isAuto && (
+                        <span className="text-[9px] font-semibold uppercase tracking-wide border border-border/40 text-muted-foreground rounded px-1 py-0.5">auto</span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">{p.concepto} · entrega {p.fecha_entrega}</p>
                   </div>
-                  <button onClick={() => setEditingPay(p)} className="p-1 text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
-                  <button onClick={async () => { try { await deletePendingPayment(p.id); toast.success("Eliminado"); } catch { toast.error("Error"); } }} className="p-1 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="font-bold text-[var(--warning)]">USD {p.monto_usd?.toFixed(0) ?? "—"}</p>
+                      <Badge variant="outline" className={cn("text-[10px] mt-0.5",
+                        p.estado === "cobrado" ? "border-[var(--success)]/30 text-[var(--success)]" :
+                          p.estado === "parcial" ? "border-[var(--warning)]/30 text-[var(--warning)]" : "border-border/40 text-muted-foreground")}>
+                        {p.estado}
+                      </Badge>
+                    </div>
+                    {!isAuto && (
+                      <>
+                        <button onClick={() => setEditingPay(p)} className="p-1 text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
+                        <button onClick={async () => { try { await deletePendingPayment(p.id); toast.success("Eliminado"); } catch { toast.error("Error"); } }} className="p-1 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <Dialog open={payOpen || !!editingPay} onOpenChange={(o) => { if (!o) { setPayOpen(false); setEditingPay(null); } }}>
             <DialogContent className="bg-card border-border/60 max-w-md">

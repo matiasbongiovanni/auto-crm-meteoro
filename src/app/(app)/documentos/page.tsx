@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Plus, ExternalLink, Check, Trash2, Pencil, FileText, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Plus, ExternalLink, Check, Trash2, Pencil, FileText, TrendingUp, Clock, XCircle, CheckCircle2, AlertCircle } from "lucide-react";
 import { useCrm } from "@/components/crm/provider";
+import { useViewer } from "@/components/documentos/viewer-context";
+import { PresupuestoEditor } from "@/components/documentos/presupuesto-editor";
+import { BienvenidaEditor } from "@/components/documentos/bienvenida-editor";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,7 +16,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import type { Proposal, ProposalStatus, OnboardingDoc } from "@/types/crm";
+import type { Proposal, ProposalStatus, OnboardingDoc, PipelineCard } from "@/types/crm";
+import type { PresupuestoData } from "@/lib/documents/types";
 
 const PROPOSAL_ESTADOS: ProposalStatus[] = ["enviado", "en_negociacion", "aceptado", "rechazado", "vencido"];
 const ESTADO_CONFIG: Record<ProposalStatus, string> = {
@@ -23,54 +27,6 @@ const ESTADO_CONFIG: Record<ProposalStatus, string> = {
   rechazado: "border-red-400/30 text-red-400",
   vencido: "border-border/40 text-muted-foreground",
 };
-
-// ─── Visor de generador HTML ──────────────────────────────────────────────────
-function GeneradorViewer({
-  src,
-  title,
-  open,
-  onClose,
-  onSaved,
-}: {
-  src: string;
-  title: string;
-  open: boolean;
-  onClose: () => void;
-  onSaved?: (payload: Record<string, unknown>) => void;
-}) {
-  useEffect(() => {
-    if (!open) return;
-    function handleMsg(e: MessageEvent) {
-      if (
-        e.data?.type === "meteoro-quote-saved" ||
-        e.data?.type === "meteoro-onboarding-saved" ||
-        e.data?.type === "meteoro-planes-saved"
-      ) {
-        onSaved?.(e.data.payload);
-      }
-    }
-    window.addEventListener("message", handleMsg);
-    return () => window.removeEventListener("message", handleMsg);
-  }, [open, onSaved]);
-
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-background">
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border/30 shrink-0 bg-card">
-        <p className="text-[12px] font-semibold uppercase tracking-widest text-foreground/80">{title}</p>
-        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onClose}>
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
-      <iframe
-        src={src}
-        title={title}
-        className="flex-1 w-full border-0"
-        allow="print"
-      />
-    </div>
-  );
-}
 
 // ─── Form rápido para metadata después de guardar desde el generador ─────────
 function SaveMetaDialog({
@@ -145,15 +101,132 @@ function SaveMetaDialog({
   );
 }
 
+// ─── Métricas de presupuestos ─────────────────────────────────────────────────
+function ProposalMetrics({ proposals }: { proposals: Proposal[] }) {
+  const stats = useMemo(() => {
+    const total = proposals.length;
+    if (total === 0) return null;
+
+    const byStatus = proposals.reduce<Record<ProposalStatus, number>>(
+      (acc, p) => { acc[p.estado] = (acc[p.estado] || 0) + 1; return acc; },
+      { enviado: 0, en_negociacion: 0, aceptado: 0, rechazado: 0, vencido: 0 }
+    );
+
+    const montoTotal = proposals.reduce((a, p) => a + (p.monto_usd || 0), 0);
+    const montoAceptado = proposals.filter((p) => p.estado === "aceptado").reduce((a, p) => a + (p.monto_usd || 0), 0);
+    const montoEnPipeline = proposals.filter((p) => ["enviado", "en_negociacion"].includes(p.estado)).reduce((a, p) => a + (p.monto_usd || 0), 0);
+
+    const activos = byStatus.enviado + byStatus.en_negociacion;
+    const tasaConversion = total > 0 ? Math.round((byStatus.aceptado / total) * 100) : 0;
+    const tasaRechazo = total > 0 ? Math.round(((byStatus.rechazado + byStatus.vencido) / total) * 100) : 0;
+
+    const ticketPromedio = byStatus.aceptado > 0 ? montoAceptado / byStatus.aceptado : 0;
+
+    return { total, byStatus, montoTotal, montoAceptado, montoEnPipeline, activos, tasaConversion, tasaRechazo, ticketPromedio };
+  }, [proposals]);
+
+  if (!stats) return null;
+
+  const fmtUsd = (n: number) => `USD ${n.toLocaleString("es-AR", { maximumFractionDigits: 0 })}`;
+
+  return (
+    <div className="space-y-3">
+      {/* Fila 1 — KPIs principales */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="metric-card rounded-xl p-4">
+          <p className="label-muted mb-1">Total presupuestado</p>
+          <p className="text-[18px] font-bold text-foreground/90 tracking-tight">{fmtUsd(stats.montoTotal)}</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">{stats.total} presupuestos</p>
+        </div>
+        <div className="metric-card rounded-xl p-4">
+          <p className="label-muted mb-1">Cerrado / Aceptado</p>
+          <p className="text-[18px] font-bold text-[var(--success)] tracking-tight">{fmtUsd(stats.montoAceptado)}</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">{stats.byStatus.aceptado} contratos · {stats.tasaConversion}% conversión</p>
+        </div>
+        <div className="metric-card rounded-xl p-4">
+          <p className="label-muted mb-1">En pipeline</p>
+          <p className="text-[18px] font-bold text-[var(--warning)] tracking-tight">{fmtUsd(stats.montoEnPipeline)}</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">{stats.activos} activos (enviado + negociación)</p>
+        </div>
+        <div className="metric-card rounded-xl p-4">
+          <p className="label-muted mb-1">Ticket promedio</p>
+          <p className="text-[18px] font-bold text-foreground/90 tracking-tight">{stats.ticketPromedio > 0 ? fmtUsd(stats.ticketPromedio) : "—"}</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">sobre contratos aceptados</p>
+        </div>
+      </div>
+
+      {/* Fila 2 — Breakdown por estado */}
+      <div className="metric-card rounded-xl p-4">
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Distribución por estado</p>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          {([
+            { id: "enviado" as ProposalStatus, label: "Enviados", icon: <FileText className="h-3.5 w-3.5" />, color: "text-sky-400" },
+            { id: "en_negociacion" as ProposalStatus, label: "Negociación", icon: <Clock className="h-3.5 w-3.5" />, color: "text-amber-400" },
+            { id: "aceptado" as ProposalStatus, label: "Aceptados", icon: <CheckCircle2 className="h-3.5 w-3.5" />, color: "text-[var(--success)]" },
+            { id: "rechazado" as ProposalStatus, label: "Rechazados", icon: <XCircle className="h-3.5 w-3.5" />, color: "text-destructive" },
+            { id: "vencido" as ProposalStatus, label: "Vencidos", icon: <AlertCircle className="h-3.5 w-3.5" />, color: "text-muted-foreground" },
+          ] as const).map(({ id, label, icon, color }) => {
+            const count = stats.byStatus[id];
+            const pct = stats.total > 0 ? Math.round((count / stats.total) * 100) : 0;
+            return (
+              <div key={id} className="space-y-1">
+                <div className={cn("flex items-center gap-1.5", color)}>
+                  {icon}
+                  <span className="text-[10px] font-semibold uppercase tracking-wide">{label}</span>
+                </div>
+                <p className="text-[22px] font-bold text-foreground/90 leading-none">{count}</p>
+                <div className="h-1 bg-muted/40 rounded-full overflow-hidden">
+                  <div className={cn("h-full rounded-full transition-all", {
+                    "bg-sky-400": id === "enviado",
+                    "bg-amber-400": id === "en_negociacion",
+                    "bg-[var(--success)]": id === "aceptado",
+                    "bg-destructive": id === "rechazado",
+                    "bg-muted-foreground/40": id === "vencido",
+                  })} style={{ width: `${pct}%` }} />
+                </div>
+                <p className="text-[10px] text-muted-foreground">{pct}%</p>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Barra de conversión */}
+        <div className="mt-4 pt-3 border-t border-border/20 flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-3.5 w-3.5 text-[var(--success)]" />
+            <span className="text-[11px] text-muted-foreground">Tasa de conversión</span>
+            <span className="text-[13px] font-bold text-[var(--success)]">{stats.tasaConversion}%</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <XCircle className="h-3.5 w-3.5 text-destructive" />
+            <span className="text-[11px] text-muted-foreground">Pérdida (rechazado + vencido)</span>
+            <span className="text-[13px] font-bold text-destructive">{stats.tasaRechazo}%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 export default function DocumentosPage() {
-  const { state, saveProposal, deleteProposal, saveOnboardingDoc, deleteOnboardingDoc } = useCrm();
+  const { state, saveProposal, deleteProposal, saveOnboardingDoc, deleteOnboardingDoc, saveLead, savePipeline } = useCrm();
+
+  function calcNextNumero(): string {
+    const nums = state.proposals
+      .map((p) => parseInt((p.datos as PresupuestoData | null | undefined)?.numero ?? "0", 10))
+      .filter((n) => !isNaN(n));
+    const next = nums.length > 0 ? Math.max(...nums) + 1 : 1;
+    return String(next).padStart(3, "0");
+  }
+  const { openViewer, closeViewer, setOnSaved } = useViewer();
   const [filterEstado, setFilterEstado] = useState<ProposalStatus | "todos">("todos");
 
-  // Generadores
-  const [generador, setGenerador] = useState<{ src: string; title: string; tipo: "cotizacion" | "onboarding" | "planes" } | null>(null);
+  const [presupuestoOpen, setPresupuestoOpen] = useState(false);
+  const [bienvenidaOpen, setBienvenidaOpen] = useState<"bienvenida" | "onboarding" | null>(null);
   const [pendingPayload, setPendingPayload] = useState<Record<string, unknown> | null>(null);
   const [metaOpen, setMetaOpen] = useState(false);
+  const [metaTipo, setMetaTipo] = useState<"cotizacion" | "onboarding" | "planes">("cotizacion");
 
   // Edit simple
   const [editingProp, setEditingProp] = useState<Proposal | null>(null);
@@ -169,18 +242,21 @@ export default function DocumentosPage() {
     const params = new URLSearchParams();
     if (cliente) params.set("cliente", cliente);
     const src = `/docs/${map[tipo]}${cliente ? "?" + params.toString() : ""}`;
-    setGenerador({ src, title: titles[tipo], tipo: tiposCRM[tipo] });
+    const tipoCRM = tiposCRM[tipo];
+    setMetaTipo(tipoCRM);
+    setOnSaved((payload) => handleGeneradorSaved(payload, tipoCRM));
+    openViewer({ src, title: titles[tipo], tipo: tipoCRM });
   }
 
-  function handleGeneradorSaved(payload: Record<string, unknown>) {
+  function handleGeneradorSaved(payload: Record<string, unknown>, tipo: "cotizacion" | "onboarding" | "planes") {
     setPendingPayload(payload);
+    setMetaTipo(tipo);
     setMetaOpen(true);
   }
 
   async function handleMetaSave(meta: { cliente: string; monto?: number; estado: string; notas: string }) {
-    if (!generador) return;
     try {
-      if (generador.tipo === "cotizacion") {
+      if (metaTipo === "cotizacion") {
         const payload = pendingPayload ?? {};
         await saveProposal({
           id: crypto.randomUUID(),
@@ -208,7 +284,7 @@ export default function DocumentosPage() {
       toast.success("Guardado en CRM");
       setMetaOpen(false);
       setPendingPayload(null);
-      setGenerador(null);
+      closeViewer();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error");
     }
@@ -216,22 +292,19 @@ export default function DocumentosPage() {
 
   return (
     <div className="space-y-4">
+      {/* Métricas */}
+      <ProposalMetrics proposals={state.proposals} />
+
       {/* Botones de generadores */}
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" onClick={() => openGenerador("presupuesto")} className="bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5">
+        <Button size="sm" onClick={() => setPresupuestoOpen(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5">
           <Plus className="h-3.5 w-3.5" /> Presupuesto
         </Button>
-        <Button size="sm" variant="outline" onClick={() => openGenerador("bienvenida")} className="border-border/50 gap-1.5">
+        <Button size="sm" variant="outline" onClick={() => setBienvenidaOpen("bienvenida")} className="border-border/50 gap-1.5">
           <Plus className="h-3.5 w-3.5" /> Bienvenida
         </Button>
-        <Button size="sm" variant="ghost" onClick={() => openGenerador("cotizacion")} className="gap-1.5 text-muted-foreground text-[11px]">
-          Cotizador v1
-        </Button>
-        <Button size="sm" variant="ghost" onClick={() => openGenerador("onboarding")} className="gap-1.5 text-muted-foreground text-[11px]">
-          Onboarding v1
-        </Button>
-        <Button size="sm" variant="ghost" onClick={() => openGenerador("planes")} className="gap-1.5 text-muted-foreground text-[11px]">
-          Planes v1
+        <Button size="sm" variant="outline" onClick={() => setBienvenidaOpen("onboarding")} className="border-border/50 gap-1.5">
+          <Plus className="h-3.5 w-3.5" /> Onboarding
         </Button>
       </div>
 
@@ -349,22 +422,11 @@ export default function DocumentosPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Generador HTML full-screen */}
-      {generador && (
-        <GeneradorViewer
-          src={generador.src}
-          title={generador.title}
-          open={!!generador}
-          onClose={() => setGenerador(null)}
-          onSaved={handleGeneradorSaved}
-        />
-      )}
-
       {/* Dialog metadata post-save */}
-      {metaOpen && generador && (
+      {metaOpen && (
         <SaveMetaDialog
           open={metaOpen}
-          tipo={generador.tipo}
+          tipo={metaTipo}
           clienteDefault={String(pendingPayload?.cliente || "")}
           onSave={handleMetaSave}
           onClose={() => { setMetaOpen(false); setPendingPayload(null); }}
@@ -389,6 +451,74 @@ export default function DocumentosPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Editor de presupuesto */}
+      <Dialog open={presupuestoOpen} onOpenChange={(o) => { if (!o) setPresupuestoOpen(false); }}>
+        <DialogContent className="bg-card border-border/60 max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle className="text-heading">Nuevo presupuesto</DialogTitle></DialogHeader>
+          <PresupuestoEditor
+            nextNumero={calcNextNumero()}
+            onSave={async (p) => {
+              await saveProposal(p);
+              const pData = p.datos as PresupuestoData | null | undefined;
+              if (pData?.telefono?.trim()) {
+                await saveLead({
+                  id: crypto.randomUUID(),
+                  nombre: p.cliente,
+                  telefono: pData.telefono.trim(),
+                  origen: "presupuesto",
+                  estado: "calificado",
+                  accion: "Presupuesto enviado",
+                  notas: "",
+                  fase: 1,
+                  fecha: p.fecha_envio,
+                  temperatura: "caliente",
+                });
+                const existingCard = state.pipeline.find((c) => c.title === p.cliente);
+                if (!existingCard) {
+                  const newCard: PipelineCard = {
+                    id: crypto.randomUUID(),
+                    title: p.cliente,
+                    company: p.cliente,
+                    owner: "Matías",
+                    stage: "in_progress",
+                    value_usd: p.monto_usd,
+                    next_step: `Seguimiento ${p.proximo_seguimiento ?? ""}`.trim(),
+                    notes: p.notas ?? "",
+                    updated_at: new Date().toISOString(),
+                    labels: [],
+                  };
+                  await savePipeline([...state.pipeline, newCard]);
+                } else if (existingCard.stage !== "in_progress") {
+                  const updated = state.pipeline.map((c) =>
+                    c.id === existingCard.id ? { ...c, stage: "in_progress" as const, updated_at: new Date().toISOString() } : c
+                  );
+                  await savePipeline(updated);
+                }
+              }
+              toast.success("Presupuesto guardado");
+              setPresupuestoOpen(false);
+            }}
+            onClose={() => setPresupuestoOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Editor de bienvenida / onboarding */}
+      <Dialog open={!!bienvenidaOpen} onOpenChange={(o) => { if (!o) setBienvenidaOpen(null); }}>
+        <DialogContent className="bg-card border-border/60 max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-heading capitalize">{bienvenidaOpen === "onboarding" ? "Nuevo onboarding" : "Nueva carta de bienvenida"}</DialogTitle>
+          </DialogHeader>
+          {bienvenidaOpen && (
+            <BienvenidaEditor
+              defaultTipo={bienvenidaOpen}
+              onSave={async (d) => { await saveOnboardingDoc(d); toast.success("Documento guardado"); setBienvenidaOpen(null); }}
+              onClose={() => setBienvenidaOpen(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

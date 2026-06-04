@@ -15,25 +15,36 @@ import type { Proposal, ProposalStatus } from "@/types/crm";
 
 const ESTADOS: ProposalStatus[] = ["enviado", "en_negociacion", "aceptado", "rechazado", "vencido"];
 
+function addDays(dateStr: string, n: number): string {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
 type Props = {
   proposal?: Proposal | null;
   clienteDefault?: string;
+  nextNumero?: string;
   onSave: (p: Proposal) => Promise<void>;
   onClose: () => void;
 };
 
-export function PresupuestoEditor({ proposal, clienteDefault = "", onSave, onClose }: Props) {
+export function PresupuestoEditor({ proposal, clienteDefault = "", nextNumero, onSave, onClose }: Props) {
   const [saving, setSaving] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [estado, setEstado] = useState<ProposalStatus>(proposal?.estado ?? "enviado");
-  const [seguimiento, setSeguimiento] = useState(proposal?.proximo_seguimiento ?? "");
+
+  const isNew = !proposal;
+  const initialData = (proposal?.datos as PresupuestoData | null | undefined) ??
+    defaultPresupuesto(clienteDefault || proposal?.cliente || "", "", nextNumero ?? "001");
+
+  const [seguimiento, setSeguimiento] = useState(
+    proposal?.proximo_seguimiento ?? (isNew ? addDays(initialData.fecha, 5) : "")
+  );
   const [link, setLink] = useState(proposal?.link_documento ?? "");
   const [notasCRM, setNotasCRM] = useState(proposal?.notas ?? "");
 
-  const [data, setData] = useState<PresupuestoData>(
-    (proposal?.datos as PresupuestoData | null | undefined) ??
-      defaultPresupuesto(clienteDefault || proposal?.cliente || "")
-  );
+  const [data, setData] = useState<PresupuestoData>(initialData);
 
   function upd(patch: Partial<PresupuestoData>) {
     setData((d) => ({ ...d, ...patch }));
@@ -66,6 +77,10 @@ export function PresupuestoEditor({ proposal, clienteDefault = "", onSave, onClo
   const fmtNum = (n: number) => n.toLocaleString("es-AR", { minimumFractionDigits: 2 });
 
   async function handleSave() {
+    if (isNew && !data.telefono?.trim()) {
+      toast.error("El teléfono del contacto es obligatorio");
+      return;
+    }
     setSaving(true);
     try {
       await onSave({
@@ -121,6 +136,10 @@ export function PresupuestoEditor({ proposal, clienteDefault = "", onSave, onClo
           <div className="space-y-1">
             <Label className="label-muted">Validez (días hábiles)</Label>
             <Input type="number" min={1} value={data.validezDias} onChange={(e) => upd({ validezDias: Number(e.target.value) || 15 })} className="bg-muted/40 border-border/60" />
+          </div>
+          <div className="space-y-1">
+            <Label className="label-muted">Teléfono de contacto {isNew && <span className="text-destructive">*</span>}</Label>
+            <Input value={data.telefono ?? ""} onChange={(e) => upd({ telefono: e.target.value })} placeholder="+54 9..." className="bg-muted/40 border-border/60" />
           </div>
           <div className="space-y-1 col-span-2">
             <Label className="label-muted">Preparado por</Label>
