@@ -145,11 +145,9 @@ export default function LeadsPage() {
           ))}
         </div>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" asChild>
-            <Link href="/leads/generador">
-              <Zap className="h-3.5 w-3.5 mr-1.5" /> Generar
-            </Link>
-          </Button>
+          <Link href="/leads/generador" className="inline-flex h-7 items-center gap-1.5 rounded-[min(var(--radius-md),12px)] border border-border bg-background px-2.5 text-[0.8rem] font-medium transition-all hover:bg-muted hover:text-foreground">
+            <Zap className="h-3.5 w-3.5" /> Generar
+          </Link>
           <Button size="sm" onClick={() => setOpen(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5">
             <Plus className="h-3.5 w-3.5" /> Nuevo lead
           </Button>
