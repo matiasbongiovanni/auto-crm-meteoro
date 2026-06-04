@@ -20,8 +20,9 @@ export type EncryptedBlob = {
   iv: string;         // base64
 };
 
-function toBase64(buf: ArrayBuffer): string {
-  return btoa(String.fromCharCode(...new Uint8Array(buf)));
+function toBase64(buf: ArrayBuffer | Uint8Array): string {
+  const arr = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+  return btoa(String.fromCharCode(...arr));
 }
 
 function fromBase64(b64: string): Uint8Array {
@@ -29,7 +30,9 @@ function fromBase64(b64: string): Uint8Array {
 }
 
 export function generateSalt(): string {
-  return toBase64(crypto.getRandomValues(new Uint8Array(16)));
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return toBase64(bytes);
 }
 
 export function defaultKdfParams(): KdfParams {
@@ -45,10 +48,11 @@ export async function deriveKey(passphrase: string, params: KdfParams): Promise<
     false,
     ["deriveKey"],
   );
+  const saltBytes = fromBase64(params.salt);
   return crypto.subtle.deriveKey(
     {
       name: KDF_ALGO,
-      salt: fromBase64(params.salt),
+      salt: saltBytes.buffer as ArrayBuffer,
       iterations: params.iterations,
       hash: KDF_HASH,
     },
@@ -60,25 +64,28 @@ export async function deriveKey(passphrase: string, params: KdfParams): Promise<
 }
 
 export async function encrypt(key: CryptoKey, plaintext: string): Promise<EncryptedBlob> {
-  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ivBytes = new Uint8Array(12);
+  crypto.getRandomValues(ivBytes);
   const enc = new TextEncoder();
   const cipherBuf = await crypto.subtle.encrypt(
-    { name: ENC_ALGO, iv },
+    { name: ENC_ALGO, iv: ivBytes },
     key,
     enc.encode(plaintext),
   );
   return {
     ciphertext: toBase64(cipherBuf),
-    iv: toBase64(iv),
+    iv: toBase64(ivBytes),
   };
 }
 
 export async function decrypt(key: CryptoKey, blob: EncryptedBlob): Promise<string> {
   const dec = new TextDecoder();
+  const ivBytes = fromBase64(blob.iv);
+  const cipherBytes = fromBase64(blob.ciphertext);
   const plain = await crypto.subtle.decrypt(
-    { name: ENC_ALGO, iv: fromBase64(blob.iv) },
+    { name: ENC_ALGO, iv: ivBytes as BufferSource },
     key,
-    fromBase64(blob.ciphertext),
+    cipherBytes as unknown as BufferSource,
   );
   return dec.decode(plain);
 }

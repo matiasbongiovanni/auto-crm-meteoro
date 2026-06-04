@@ -49,7 +49,7 @@ export function VaultList({ cryptoKey, onLock }: Props) {
   const [clearTimers, setClearTimers] = useState<Record<string, ReturnType<typeof setTimeout>>>({});
   const [editItem, setEditItem] = useState<VaultItem | null | "new">(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const lockTimer = useRef<ReturnType<typeof setTimeout>>();
+  const lockTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const resetLockTimer = useCallback(() => {
     clearTimeout(lockTimer.current);
