@@ -154,7 +154,7 @@ export function VaultItemForm({ cryptoKey, item, onSaved, onCancel }: Props) {
         ) : (
           <div className="space-y-1.5">
             <Label>Categoría</Label>
-            <Select value={categoria} onValueChange={setCategoria}>
+            <Select value={categoria} onValueChange={(v) => v && setCategoria(v)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
