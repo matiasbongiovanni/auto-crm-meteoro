@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Lock } from "lucide-react";
 import { VaultUnlock } from "@/components/vault/VaultUnlock";
@@ -14,6 +14,7 @@ export default function BovedaPage() {
   const router = useRouter();
   const [meta, setMeta] = useState<VaultMeta | null | "loading">("loading");
   const [cryptoKey, setCryptoKey] = useState<CryptoKey | null>(null);
+  const initialized = useRef(false);
 
   // Gate: solo CEO
   useEffect(() => {
@@ -22,9 +23,10 @@ export default function BovedaPage() {
     }
   }, [state.profile, router]);
 
-  // Load vault meta on mount
+  // Load vault meta una sola vez cuando el profile está disponible
   useEffect(() => {
-    if (!state.profile) return;
+    if (!state.profile || initialized.current) return;
+    initialized.current = true;
     vaultGetMeta()
       .then((m) => setMeta(m))
       .catch(() => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 import { DEFAULT_SETTINGS, STATE_KEYS } from "@/lib/constants";
@@ -142,6 +142,8 @@ function scopeFromAction(action: string): RefreshScope {
   return "all";
 }
 
+const REFRESH_COOLDOWN_MS = 120_000;
+
 export function CrmProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<CrmState>(EMPTY_STATE);
   const [leadJobs, setLeadJobs] = useState<LeadJob[]>([]);
@@ -151,6 +153,7 @@ export function CrmProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<SessionState | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [actionFeedback, setActionFeedback] = useState<Record<string, ActionFeedback>>({});
+  const lastRefreshedAt = useRef<number>(0);
   const router = useRouter();
 
   function setFeedback(key: string, status: ActionStatus, message: string | null = null) {
@@ -183,7 +186,10 @@ export function CrmProvider({ children }: { children: React.ReactNode }) {
         if (scope === "clientes") return { ...prev, clientes: result.clientes ?? prev.clientes, invoices: result.invoices ?? prev.invoices };
         return { profile: result.profile ?? prev.profile, profiles: result.profiles ?? prev.profiles, leads: result.leads ?? prev.leads, pipeline: result.pipeline ?? [], ingresos: result.ingresos ?? prev.ingresos, egresos: result.egresos ?? prev.egresos, subscriptions: result.subscriptions ?? prev.subscriptions, agents: result.agents ?? prev.agents, settings: result.settings ?? prev.settings, proposals: result.proposals ?? prev.proposals, apiKeys: result.apiKeys ?? prev.apiKeys, calendarEvents: result.calendarEvents ?? prev.calendarEvents, companyNotes: result.companyNotes ?? prev.companyNotes, pendingPayments: result.pendingPayments ?? prev.pendingPayments, onboardingDocs: result.onboardingDocs ?? prev.onboardingDocs, clientes: result.clientes ?? prev.clientes, invoices: result.invoices ?? prev.invoices };
       });
-      if (scope === "all") await refreshUsage();
+      if (scope === "all") {
+        await refreshUsage();
+        lastRefreshedAt.current = Date.now();
+      }
     } finally { if (scope === "all") setLoading(false); }
   }
 
@@ -243,13 +249,27 @@ export function CrmProvider({ children }: { children: React.ReactNode }) {
       if (event === "TOKEN_REFRESHED") { setSession(toSessionState(next)); return; }
       const nextSession = toSessionState(next);
       setSession(nextSession);
-      if (nextSession) refreshData("all", nextSession);
-      else { setState(EMPTY_STATE); setUsage(null); setLoading(false); router.push("/login"); }
+      if (nextSession) {
+        const isStale = Date.now() - lastRefreshedAt.current > REFRESH_COOLDOWN_MS;
+        if (isStale || lastRefreshedAt.current === 0) refreshData("all", nextSession);
+      } else { setState(EMPTY_STATE); setUsage(null); setLoading(false); router.push("/login"); }
     });
 
     return () => subscription.unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === "visible" && session) {
+        const isStale = Date.now() - lastRefreshedAt.current > REFRESH_COOLDOWN_MS;
+        if (isStale) refreshData("all");
+      }
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
 
   const value = useMemo<ContextValue>(
     () => ({
@@ -317,14 +337,45 @@ export function CrmProvider({ children }: { children: React.ReactNode }) {
         setLeadJobs((prev) => [result.job, ...prev]);
         return result.job;
       },
-      // Vault — all on-demand, no global cache
-      vaultGetMeta: () => persistAndReturn<{ ok: boolean; meta: VaultMeta | null }>("vault-get-meta", {}, "vault-get-meta").then((r) => r.meta),
+      // Vault — read ops NO deben tocar estado global (evita loop de refresh)
+      vaultGetMeta: async () => {
+        if (!session?.access_token) throw new Error("No active session");
+        const r = await fetchJson<{ ok: boolean; meta: VaultMeta | null }>("/api/crm", {
+          method: "POST", cache: "no-store",
+          headers: { "content-type": "application/json", authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ action: "vault-get-meta" }),
+        });
+        return r.meta;
+      },
       vaultSetMeta: (params) => persistAndRaise("vault-set-meta", { item: params }, "vault-set-meta"),
-      vaultList: () => persistAndReturn<{ ok: boolean; items: VaultItem[] }>("vault-list", {}, "vault-list").then((r) => r.items),
+      vaultList: async () => {
+        if (!session?.access_token) throw new Error("No active session");
+        const r = await fetchJson<{ ok: boolean; items: VaultItem[] }>("/api/crm", {
+          method: "POST", cache: "no-store",
+          headers: { "content-type": "application/json", authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ action: "vault-list" }),
+        });
+        return r.items;
+      },
       vaultSaveItem: (item) => persistAndRaise("vault-save-item", { item }, `vault-save-item:${item.id || "new"}`),
       vaultDeleteItem: (id) => persistAndRaise("vault-delete-item", { id }, `vault-delete-item:${id}`),
-      vaultLogAudit: (auditAction, item_id) => persistAndRaise("vault-log-audit", { auditAction, item_id }, "vault-log-audit"),
-      vaultListAudit: () => persistAndReturn<{ ok: boolean; entries: import("@/types/crm").VaultAuditEntry[] }>("vault-list-audit", {}, "vault-list-audit").then((r) => r.entries),
+      vaultLogAudit: async (auditAction, item_id) => {
+        if (!session?.access_token) return;
+        await fetchJson("/api/crm", {
+          method: "POST", cache: "no-store",
+          headers: { "content-type": "application/json", authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ action: "vault-log-audit", auditAction, item_id }),
+        }).catch(() => null);
+      },
+      vaultListAudit: async () => {
+        if (!session?.access_token) throw new Error("No active session");
+        const r = await fetchJson<{ ok: boolean; entries: import("@/types/crm").VaultAuditEntry[] }>("/api/crm", {
+          method: "POST", cache: "no-store",
+          headers: { "content-type": "application/json", authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ action: "vault-list-audit" }),
+        });
+        return r.entries;
+      },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [actionFeedback, authError, leadJobs, loading, session, state, usage],

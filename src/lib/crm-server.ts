@@ -351,6 +351,30 @@ export async function handleCrmRequest(request: NextRequest) {
         const { error: calendarError } = await admin.from("crm_state").upsert({ user_id: workspaceId, state_key: "exp2_calendar", payload: nextEvents, updated_at: today.toISOString() });
         if (calendarError) return json({ error: calendarError.message }, 500);
       }
+      // Transición a "aceptado" → crear ingreso por cobrar automáticamente
+      const previousEstado = existingProposals.find((item) => item.id === proposalId)?.estado;
+      const isAceptadoTransition = saved.estado === "aceptado" && previousEstado !== "aceptado";
+      if (isAceptadoTransition && saved.monto_usd != null && saved.monto_usd > 0) {
+        const nowIso = today.toISOString();
+        const ingresoRow = {
+          id: crypto.randomUUID(),
+          user_id: user.id,
+          concepto: `Por cobrar — ${saved.cliente || "Cliente"}: ${saved.concepto || "Sin concepto"}`,
+          persona: saved.cliente || "",
+          fecha: nowIso.slice(0, 10),
+          tipo: "ingreso",
+          flow_kind: "cobro_pendiente",
+          payment_destination: "",
+          usd_type: "blue",
+          period_month: nowIso.slice(0, 7),
+          ars: null,
+          usd: Number(saved.monto_usd),
+          eur: null,
+          exchange_snapshot: null,
+        };
+        const { error: ingresoError } = await admin.from("crm_ingresos").insert(ingresoRow);
+        if (ingresoError) return json({ error: ingresoError.message }, 500);
+      }
       return json({ ok: true });
     }
 
@@ -628,9 +652,10 @@ export async function handleCrmRequest(request: NextRequest) {
       if (currentRole !== "ceo") return json({ error: "Forbidden" }, 403);
       const { data, error } = await admin
         .from("crm_vault_items")
-        .select("id,nombre,categoria,cliente,ciphertext,iv,url,created_at,updated_at")
+        .select("id,tipo,nombre,categoria,cliente,ciphertext,iv,url,created_at,updated_at")
         .eq("workspace_id", workspaceId)
-        .order("categoria")
+        .order("tipo")
+        .order("cliente")
         .order("nombre");
       if (error) return json({ error: error.message }, 500);
       return json({ ok: true, items: data || [] });
@@ -640,12 +665,16 @@ export async function handleCrmRequest(request: NextRequest) {
       if (currentRole !== "ceo") return json({ error: "Forbidden" }, 403);
       if (!payload.nombre || !payload.ciphertext || !payload.iv)
         return json({ error: "nombre, ciphertext e iv son requeridos" }, 400);
+      const tipo = String(payload.tipo || "servicio");
+      if (!["proyecto", "servicio"].includes(tipo))
+        return json({ error: "tipo inválido" }, 400);
       const now = new Date().toISOString();
       const row = {
         id: String(payload.id || crypto.randomUUID()),
         workspace_id: workspaceId,
+        tipo,
         nombre: String(payload.nombre),
-        categoria: String(payload.categoria || "general"),
+        categoria: String(payload.categoria || "otro"),
         cliente: String(payload.cliente || ""),
         ciphertext: String(payload.ciphertext),
         iv: String(payload.iv),

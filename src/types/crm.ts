@@ -54,9 +54,12 @@ export type LeadJob = {
   finished_at?: string;
 };
 
+export type VaultTipo = "proyecto" | "servicio";
+
 export type VaultItem = {
   id: string;
   workspace_id?: string;
+  tipo: VaultTipo;
   nombre: string;
   categoria: string;
   cliente: string;
