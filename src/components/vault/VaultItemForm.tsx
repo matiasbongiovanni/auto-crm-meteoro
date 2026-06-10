@@ -46,7 +46,7 @@ export function VaultItemForm({ cryptoKey, item, onSaved, onCancel }: Props) {
   const [plainSecret, setPlainSecret] = useState("");
   const [tipo, setTipo] = useState<VaultTipo>(item?.tipo || "servicio");
   const [categoria, setCategoria] = useState(item?.categoria || "otro");
-  const [cliente, setCliente] = useState(item?.cliente || "");
+  const [cliente, setCliente] = useState<string>(item?.cliente || "");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -134,7 +134,7 @@ export function VaultItemForm({ cryptoKey, item, onSaved, onCancel }: Props) {
         {tipo === "proyecto" ? (
           <div className="space-y-1.5">
             <Label>Cliente *</Label>
-            <Select value={cliente} onValueChange={setCliente}>
+            <Select value={cliente} onValueChange={(v) => v && setCliente(v)}>
               <SelectTrigger>
                 <SelectValue placeholder="Seleccioná el cliente..." />
               </SelectTrigger>
