@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Building2, Phone, Mail, Calendar, DollarSign, Activity, FileText, CheckCircle2, XCircle, ExternalLink } from "lucide-react";
+import { X, Building2, Phone, Mail, Calendar, DollarSign, Activity, FileText, CheckCircle2, XCircle, ExternalLink, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCrm } from "@/components/crm/provider";
 import { healthDeCliente, diasARenovacion, mrrDeCliente, invoicesDelMes } from "@/lib/clientes";
@@ -9,6 +9,7 @@ import { CLIENT_HEALTH_CONFIG, CLIENT_STATUS_CONFIG, INVOICE_STATUS_CONFIG, BILL
 import type { Cliente, Invoice } from "@/types/crm";
 import { toast } from "sonner";
 import { renderFactura } from "@/lib/documents/render-factura";
+import { PortalAdminTab } from "@/components/crm/PortalAdminTab";
 
 interface Props {
   cliente: Cliente;
@@ -59,8 +60,11 @@ function InvoiceRow({ invoice, clienteNombre }: { invoice: Invoice; clienteNombr
   );
 }
 
+type Tab = "info" | "portal";
+
 export function ClienteDetalle({ cliente, onClose }: Props) {
   const { state } = useCrm();
+  const [activeTab, setActiveTab] = useState<Tab>("info");
   const invoices = state.invoices.filter((i) => i.cliente_id === cliente.id);
   const currentMonth = new Date().toISOString().slice(0, 7);
   const mesInvoices = invoicesDelMes(invoices, currentMonth);
@@ -97,6 +101,34 @@ export function ClienteDetalle({ cliente, onClose }: Props) {
           </button>
         </div>
 
+        {/* Tabs */}
+        <div className="flex border-b border-border/30">
+          <button
+            onClick={() => setActiveTab("info")}
+            className={cn("flex items-center gap-1.5 px-5 py-2.5 text-[12px] font-medium transition-colors border-b-2 -mb-px", activeTab === "info" ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}
+          >
+            <Building2 className="h-3 w-3" /> Info
+          </button>
+          <button
+            onClick={() => setActiveTab("portal")}
+            className={cn("flex items-center gap-1.5 px-5 py-2.5 text-[12px] font-medium transition-colors border-b-2 -mb-px", activeTab === "portal" ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}
+          >
+            <Globe className="h-3 w-3" /> Portal
+          </button>
+        </div>
+
+        {activeTab === "portal" && (
+          <div className="flex-1 p-5 overflow-auto">
+            <PortalAdminTab
+              clienteId={cliente.id}
+              clienteNombre={cliente.nombre}
+              clienteEmpresa={cliente.empresa}
+              clienteEmail={cliente.email}
+            />
+          </div>
+        )}
+
+        {activeTab === "info" && (
         <div className="flex-1 p-5 space-y-5 overflow-auto">
           {/* KPIs */}
           <div className="grid grid-cols-2 gap-3">
@@ -206,8 +238,9 @@ export function ClienteDetalle({ cliente, onClose }: Props) {
             </div>
           )}
         </div>
+        )}
 
-        <div className="p-4 border-t border-border/30">
+        <div className="p-4 border-t border-border/30 shrink-0">
           <p className="text-[10px] text-muted-foreground">Alta: {formatDate(new Date(cliente.fecha_alta))} · Owner: {cliente.owner || "—"}</p>
         </div>
       </div>

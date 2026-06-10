@@ -53,13 +53,23 @@ npm run mcp        # Servidor MCP (Claude Desktop/Web)
 - `(app)/dashboard/` — Dashboard de negocio (métricas, revenue, pipeline, widget cobros + alertas cartera)
 - `(app)/leads/` — Gestión de leads *(próxima fase)*
 - `(app)/pipeline/` — Kanban *(próxima fase)*
-- `(app)/clientes/` — **Cartera de clientes 360** ✓ (implementado 2026-06-02) — tabla, filtros, drawer detalle, health score
-- `(app)/finanzas/` — Ingresos/egresos/suscripciones/pagos + **tab Cobranzas** ✓ (implementado 2026-06-02)
+- `(app)/clientes/` — **Cartera de clientes 360** ✓ — tabla, filtros, drawer detalle con tabs "Info" y "Portal"
+- `(app)/finanzas/` — Ingresos/egresos/suscripciones/pagos + tab Cobranzas ✓
 - `(app)/tareas/` — Calendario y tareas *(próxima fase)*
-- `(app)/documentos/` — **Generador de documentos Meteoro** ✓ (implementado 2026-06-01)
+- `(app)/documentos/` — Generador de documentos Meteoro ✓
 - `(app)/agentes/` — Config agentes prospector *(próxima fase)*
-- `(app)/mensajeria/` — **Meteoro Chat self-hosted embebido con SSO** ✓ (implementado 2026-05-31)
+- `(app)/mensajeria/` — Meteoro Chat self-hosted embebido con SSO ✓
 - `(app)/admin/` — Usuarios, roles, API keys (solo ceo) *(próxima fase)*
+
+### Portal de Clientes (público — no requiere auth de Mati)
+- `(portal)/portal/login` — Login de clientes vía email/password (Supabase)
+- `(portal)/portal/[slug]` — Vista del proyecto: progreso circular, tareas por categoría, timeline de updates
+- Componentes: `src/components/portal/` — `PortalView`, `PortalProgress`, `PortalTaskList`, `PortalTimeline`
+- Panel admin: tab "Portal" en el drawer de `ClienteDetalle` → `PortalAdminTab`
+- Tipos: `src/types/portal.ts` — `PortalProject`, `PortalTask`, `PortalUpdate`, `PortalUser`
+- Auth helper: `src/lib/portal-auth.ts` — `getPortalSession(token)` verifica cookie `portal_token`
+- Email invite: `src/lib/portal-invite-email.ts` — HTML Meteoro + Resend, recovery link de Supabase
+- Migración SQL: `supabase/migrations/2026-06-09-portal-clientes.sql` (**pendiente confirmación de Mati**)
 
 ### API
 - `/api/crm` — Router principal (GET state, POST acciones)
@@ -71,6 +81,9 @@ npm run mcp        # Servidor MCP (Claude Desktop/Web)
 - `/api/leads/ingest` — Ingesta canónica de leads (API key scope `write`, no requiere sesión) → `crm_leads`
 - `/api/leads/scrape` — Encolar job de scraping (auth Supabase, gate admin) · GET lista jobs
 - `/api/leads/jobs` — Worker: GET jobs pendientes · PATCH actualizar estado (API key scope `read`/`write`)
+- `/api/portal/auth` — POST login portal (email+password) → Supabase signIn + cookie `portal_token`
+- `/api/portal/project` — GET datos del proyecto del cliente (autenticado con cookie portal)
+- `/api/portal/admin` — GET/POST CRUD del portal (autenticado con Bearer token de Mati)
 
 ## Variables de entorno
 
@@ -88,6 +101,11 @@ NEXT_PUBLIC_METEORO_CHAT_URL=http://localhost:3008
 CHATWOOT_PLATFORM_TOKEN=<platform-api-token>   # server-only, NUNCA con NEXT_PUBLIC_
 CHATWOOT_AGENT_USER_ID=1                        # ID del agente que se loguea vía SSO
 CHATWOOT_DEFAULT_ACCOUNT_ID=1                   # Account ID de la cuenta Meteoro Interno
+
+# Portal de Clientes
+NEXT_PUBLIC_PORTAL_URL=https://auto-crm-meteoro.vercel.app  # URL base para links en emails y cookie
+RESEND_API_KEY=<resend-api-key>                              # API key de Resend para emails de invitación
+RESEND_FROM_EMAIL=noreply@meteoro.com.ar                     # Remitente (debe estar verificado en Resend; fallback: onboarding@resend.dev)
 ```
 
 Ver `salidas/meteoro-chat/scripts/seed-instancia.sh` para obtener los valores de Meteoro Chat.

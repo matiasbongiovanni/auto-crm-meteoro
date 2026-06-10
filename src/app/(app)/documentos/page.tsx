@@ -498,6 +498,19 @@ export default function DocumentosPage() {
               }
               toast.success("Presupuesto guardado");
               setPresupuestoOpen(false);
+              // Trigger n8n via proxy server-side (evita CORS)
+              fetch("/api/n8n/presupuesto", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  proposalId: p.id,
+                  cliente: p.cliente,
+                  concepto: p.concepto,
+                  monto_usd: p.monto_usd,
+                  estado: p.estado,
+                  datos: p.datos,
+                }),
+              }).catch(() => {/* silencioso — no bloquear UI */});
             }}
             onClose={() => setPresupuestoOpen(false)}
           />
