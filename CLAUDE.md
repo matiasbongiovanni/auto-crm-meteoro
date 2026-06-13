@@ -93,7 +93,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
 
 # Workers de scraping (no van en Next.js, van en la máquina que corre worker-jobs.py)
-CRM_URL=https://auto-crm-meteoro.vercel.app      # o http://localhost:3000 en dev
+CRM_URL=https://crm.meteoro.com.ar               # o http://localhost:3000 en dev
 CRM_WORKER_API_KEY=met_live_...                  # generar desde Admin → API Keys (scopes: read+write)
 
 # Meteoro Chat self-hosted (sección Mensajería)
@@ -103,7 +103,7 @@ CHATWOOT_AGENT_USER_ID=1                        # ID del agente que se loguea v�
 CHATWOOT_DEFAULT_ACCOUNT_ID=1                   # Account ID de la cuenta Meteoro Interno
 
 # Portal de Clientes
-NEXT_PUBLIC_PORTAL_URL=https://auto-crm-meteoro.vercel.app  # URL base para links en emails y cookie
+NEXT_PUBLIC_PORTAL_URL=https://crm.meteoro.com.ar  # URL base para links en emails y cookie
 RESEND_API_KEY=<resend-api-key>                              # API key de Resend para emails de invitación
 RESEND_FROM_EMAIL=noreply@meteoro.com.ar                     # Remitente (debe estar verificado en Resend; fallback: onboarding@resend.dev)
 ```

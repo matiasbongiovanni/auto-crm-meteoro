@@ -13,7 +13,9 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { CalendarEvent, CalendarEventType, CompanyNote } from "@/types/crm";
 import { TaskMetrics } from "@/components/tareas/TaskMetrics";
-import { CalendarView } from "@/components/tareas/Calendar";
+import { CalendarPro } from "@/components/tareas/CalendarPro";
+import { TaskCharts, ContributionHeatmap } from "@/components/tareas/TaskCharts";
+import { TaskToolbar } from "@/components/tareas/TaskToolbar";
 
 const TYPE_CONFIG: Record<CalendarEventType, { label: string; color: string }> = {
   tarea: { label: "Tarea", color: "text-amber-400 bg-amber-400/10 border-amber-400/20" },
@@ -119,6 +121,12 @@ export default function TareasPage() {
   async function handleDelete(id: string) {
     try { await deleteCalendarEvent(id); toast.success("Eliminado"); } catch { toast.error("Error"); }
   }
+  async function handleReschedule(event: CalendarEvent, newDate: string) {
+    await saveCalendarEvent({ ...event, date: newDate });
+  }
+  async function handleImport(imported: CalendarEvent[]) {
+    for (const ev of imported) await saveCalendarEvent(ev);
+  }
 
   const upcomingEvents = state.calendarEvents
     .filter((e) => !e.completed && e.date >= todayStr)
@@ -129,7 +137,12 @@ export default function TareasPage() {
     <div className="space-y-4">
       <TaskMetrics />
 
-      <div className="flex justify-end">
+      <TaskCharts events={state.calendarEvents} />
+
+      <ContributionHeatmap events={state.calendarEvents} />
+
+      <div className="flex items-center justify-end gap-2">
+        <TaskToolbar events={state.calendarEvents} onImport={handleImport} />
         <Button size="sm" onClick={() => { setSelectedDate(todayStr); setOpen(true); }}
           className="bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5">
           <Plus className="h-3.5 w-3.5" /> Nueva tarea
@@ -181,12 +194,13 @@ export default function TareasPage() {
 
         {/* Calendario */}
         <TabsContent value="calendario" className="mt-4">
-          <CalendarView
+          <CalendarPro
             events={state.calendarEvents}
             onToggle={handleToggle}
             onDelete={handleDelete}
             onNewEvent={(date) => { setSelectedDate(date); setOpen(true); }}
             onEdit={(e) => setEditing(e)}
+            onReschedule={handleReschedule}
           />
         </TabsContent>
 

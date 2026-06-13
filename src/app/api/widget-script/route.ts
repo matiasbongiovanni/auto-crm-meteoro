@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
 export async function GET() {
-  const BASE_URL = "https://auto-crm-hazel.vercel.app";
+  const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://crm.meteoro.com.ar";
   const script = `var BASE_URL = "${BASE_URL}";
 var API_KEY = args.widgetParameter || "";
 var C = {

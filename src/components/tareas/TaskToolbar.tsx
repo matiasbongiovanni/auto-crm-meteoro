@@ -53,10 +53,10 @@ export function TaskToolbar({
       <input ref={fileRef} type="file" accept=".csv,.json,.txt" onChange={handleFile} className="hidden" />
 
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button size="sm" variant="outline" className="gap-1.5 border-border/60 text-muted-foreground hover:text-foreground">
-            <Download className="h-3.5 w-3.5" /> Exportar
-          </Button>
+        <DropdownMenuTrigger
+          render={<Button size="sm" variant="outline" className="gap-1.5 border-border/60 text-muted-foreground hover:text-foreground" />}
+        >
+          <Download className="h-3.5 w-3.5" /> Exportar
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-52">
           <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
