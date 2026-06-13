@@ -3,6 +3,7 @@ import { createHash } from "crypto";
 import { authenticateApiKey, requireScope } from "@/lib/api-auth";
 import { getSupabaseServerClient } from "@/lib/server-supabase";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/constants";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -57,6 +58,10 @@ export async function POST(request: NextRequest) {
   const ctx = await authenticateApiKey(request);
   const guard = requireScope(ctx, "write");
   if (guard) return guard;
+
+  if (!rateLimit(`ingest:${ctx!.keyId}`, { limit: 60, windowMs: 60_000 })) {
+    return NextResponse.json({ error: "Rate limit excedido" }, { status: 429 });
+  }
 
   let body: IngestLead | IngestLead[];
   try {

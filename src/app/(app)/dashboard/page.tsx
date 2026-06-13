@@ -5,10 +5,14 @@ import Link from "next/link";
 import { useCrm } from "@/components/crm/provider";
 import { BusinessMetrics } from "@/components/dashboard/BusinessMetrics";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
-import { monthKey, monthlySubscriptionCost, filterByMonth } from "@/lib/finance";
+import { CashCollectWidget } from "@/components/dashboard/CashCollectWidget";
+import { AgingBreakdown } from "@/components/dashboard/AgingBreakdown";
+import { monthlySubscriptionCost } from "@/lib/finance";
+import { forecastMes } from "@/lib/forecast";
 import { totalCobrado, totalPorCobrar, totalVencido, diasARenovacion } from "@/lib/clientes";
-import { formatUsd } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+
+const SCOPE_DAYS: Record<Scope, number> = { "7d": 7, "30d": 30, "90d": 90 };
 
 const SCOPES = [
   { value: "7d", label: "7 días" },
@@ -25,10 +29,14 @@ export default function DashboardPage() {
   const currentMonth = new Date().toISOString().slice(0, 7);
 
   const metrics = useMemo(() => {
-    const ingresosMes = filterByMonth(state.ingresos, currentMonth);
-    const egresosMes = filterByMonth(state.egresos, currentMonth);
-    const totalIngresos = ingresosMes.reduce((acc, r) => acc + (r.usd || 0), 0);
-    const totalEgresos = egresosMes.reduce((acc, r) => acc + (r.usd || 0), 0);
+    // Scope real: ventana de los últimos N días (7/30/90) sobre ingresos/egresos.
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - SCOPE_DAYS[scope]);
+    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    const ingresosScope = state.ingresos.filter((r) => (r.fecha || "") >= cutoffStr);
+    const egresosScope = state.egresos.filter((r) => (r.fecha || "") >= cutoffStr);
+    const totalIngresos = ingresosScope.reduce((acc, r) => acc + (r.usd || 0), 0);
+    const totalEgresos = egresosScope.reduce((acc, r) => acc + (r.usd || 0), 0);
     const netRevenue = totalIngresos - totalEgresos;
     const mrr = monthlySubscriptionCost(state.subscriptions, currentMonth);
     const pendingTotal = state.pendingPayments
@@ -37,6 +45,12 @@ export default function DashboardPage() {
     const pipelineValue = state.pipeline.reduce((acc, c) => acc + (c.value_usd || 0), 0);
     const leadsCaliente = state.leads.filter((l) => l.temperatura === "caliente").length;
     const leadsTibio = state.leads.filter((l) => l.temperatura === "tibio").length;
+
+    // Cash collect del mes calendario
+    const cobrado = totalCobrado(state.invoices, currentMonth);
+    const porCobrar = totalPorCobrar(state.invoices, currentMonth);
+    const vencido = totalVencido(state.invoices);
+    const forecast = forecastMes(state.pipeline, state.subscriptions, currentMonth);
 
     return {
       netRevenue,
@@ -48,8 +62,12 @@ export default function DashboardPage() {
       leadsCaliente,
       leadsTibio,
       totalLeads: state.leads.length,
+      cobrado,
+      porCobrar,
+      vencido,
+      forecast,
     };
-  }, [state, currentMonth]);
+  }, [state, currentMonth, scope]);
 
   return (
     <div className="space-y-5">
@@ -104,25 +122,16 @@ export default function DashboardPage() {
       {/* Cobros + Alertas */}
       {(state.clientes.length > 0 || state.invoices.length > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {/* Cobros del mes */}
-          <div className="metric-card p-5">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Cobros {currentMonth}</p>
-              <Link href="/finanzas" className="text-[11px] text-muted-foreground hover:text-foreground">Ver →</Link>
-            </div>
-            <div className="space-y-2">
-              {[
-                { label: "Cobrado", value: totalCobrado(state.invoices, currentMonth), color: "text-[var(--success)]" },
-                { label: "Por cobrar", value: totalPorCobrar(state.invoices, currentMonth), color: "text-[var(--warning)]" },
-                { label: "Vencido", value: totalVencido(state.invoices), color: "text-destructive" },
-              ].map(({ label, value, color }) => (
-                <div key={label} className="flex items-center justify-between">
-                  <span className="text-[12px] text-muted-foreground">{label}</span>
-                  <span className={cn("text-[13px] font-semibold", color)}>{formatUsd(value)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          {/* Cash collect del mes */}
+          <CashCollectWidget
+            month={currentMonth}
+            cobrado={metrics.cobrado}
+            porCobrar={metrics.porCobrar}
+            vencido={metrics.vencido}
+            forecast={metrics.forecast}
+            meta={state.settings.monthlyGoalUsd}
+            hideGoalAmount={state.settings.hideGoalAmount}
+          />
 
           {/* Alertas de renovación y vencidos */}
           <div className="metric-card p-5">
@@ -156,6 +165,11 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Cartera por antigüedad (aging) */}
+      {state.invoices.length > 0 && (
+        <AgingBreakdown invoices={state.invoices} clientes={state.clientes} />
       )}
 
       {/* Pipeline + Leads summary */}

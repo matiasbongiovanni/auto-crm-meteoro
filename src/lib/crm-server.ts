@@ -309,6 +309,7 @@ export async function handleCrmRequest(request: NextRequest) {
     }
 
     if (body.action === "save-ingreso") {
+      if (roleRank(currentRole) < 2) return json({ error: "Forbidden" }, 403);
       const row = { id: payload.id, user_id: user.id, concepto: payload.concepto || "", persona: payload.persona || "", fecha: payload.fecha || new Date().toISOString().slice(0, 10), tipo: payload.tipo || "", flow_kind: payload.flow_kind || "mensualidad", payment_destination: payload.payment_destination || "", usd_type: payload.usd_type || "blue", period_month: payload.period_month || String(payload.fecha || "").slice(0, 7), exchange_snapshot: payload.exchange_snapshot || null, usd: payload.usd === null || payload.usd === "" ? null : Number(payload.usd), ars: payload.ars === null || payload.ars === "" ? null : Number(payload.ars), eur: payload.eur === null || payload.eur === "" ? null : Number(payload.eur), updated_at: new Date().toISOString() };
       const { error } = await admin.from("crm_ingresos").upsert(row);
       if (error) return json({ error: error.message }, 500);
@@ -316,12 +317,14 @@ export async function handleCrmRequest(request: NextRequest) {
     }
 
     if (body.action === "delete-ingreso") {
+      if (roleRank(currentRole) < 2) return json({ error: "Forbidden" }, 403);
       const { error } = await admin.from("crm_ingresos").delete().eq("user_id", user.id).eq("id", body.id);
       if (error) return json({ error: error.message }, 500);
       return json({ ok: true });
     }
 
     if (body.action === "save-egreso") {
+      if (roleRank(currentRole) < 2) return json({ error: "Forbidden" }, 403);
       const row = { id: payload.id, user_id: user.id, concepto: payload.concepto || "", fecha: payload.fecha || new Date().toISOString().slice(0, 10), tipo: payload.tipo || "", cat: payload.cat || "", flow_kind: payload.flow_kind || "operacion", payment_destination: payload.payment_destination || "", usd_type: payload.usd_type || "blue", period_month: payload.period_month || String(payload.fecha || "").slice(0, 7), exchange_snapshot: payload.exchange_snapshot || null, usd: payload.usd === null || payload.usd === "" ? null : Number(payload.usd), ars: payload.ars === null || payload.ars === "" ? null : Number(payload.ars), eur: payload.eur === null || payload.eur === "" ? null : Number(payload.eur), updated_at: new Date().toISOString() };
       const { error } = await admin.from("crm_egresos").upsert(row);
       if (error) return json({ error: error.message }, 500);
@@ -329,6 +332,7 @@ export async function handleCrmRequest(request: NextRequest) {
     }
 
     if (body.action === "delete-egreso") {
+      if (roleRank(currentRole) < 2) return json({ error: "Forbidden" }, 403);
       const { error } = await admin.from("crm_egresos").delete().eq("user_id", user.id).eq("id", body.id);
       if (error) return json({ error: error.message }, 500);
       return json({ ok: true });

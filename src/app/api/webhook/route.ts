@@ -3,6 +3,7 @@ import { timingSafeEqual } from "crypto";
 import { db } from "@/db";
 import { contacts, activities, crmSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { rateLimit } from "@/lib/rate-limit";
 
 const FIELD_MAP: Record<string, string> = {
   name: "name", nombre: "name", full_name: "name", fullname: "name",
@@ -45,6 +46,11 @@ function extractFields(payload: Record<string, unknown>): Record<string, string>
 }
 
 export async function POST(request: NextRequest) {
+  const ip = (request.headers.get("x-forwarded-for") || "unknown").split(",")[0].trim();
+  if (!rateLimit(`webhook:${ip}`, { limit: 60, windowMs: 60_000 })) {
+    return NextResponse.json({ error: "Rate limit excedido" }, { status: 429 });
+  }
+
   const [stored] = await db
     .select()
     .from(crmSettings)

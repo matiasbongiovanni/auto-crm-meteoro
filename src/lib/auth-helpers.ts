@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getPublicSupabaseEnv } from "@/lib/supabase-env";
-
-const ALLOWED_EMAILS = ["matiasweschta@gmail.com"];
+import { ALLOWED_EMAILS } from "@/lib/allowed-emails";
 
 export async function requireAuth(
   authHeader: string | null

@@ -182,4 +182,18 @@ FASE 2 ✓ completada (2026-06-04):
 - **Workers Python**: `~/tools/leads/worker-jobs.py` (loop de cola), `~/tools/leads/instagram-followers.py` (instagrapi), `scrape-leads.py` actualizado (canónico + legacy)
 - **Migración pendiente**: `supabase/migrations/2026-06-04-leads-boveda.sql` — aplicar con confirmación de Mati
 
+FASE SEGURIDAD + CASH COLLECT ✓ (2026-06-13):
+- **Hardening de seguridad** (commit `5664100`): webhook con secret obligatorio + `timingSafeEqual`; `requireAuth` cableado en ~10 rutas API antes abiertas; rate limiter (`src/lib/rate-limit.ts`) en `portal/auth`; allowlist de email por env (`src/lib/allowed-emails.ts`); bumps de CVE (next 16.2.9, anthropic-sdk, overrides postcss/esbuild).
+- **Rate limit** ahora también en endpoints públicos de ingesta: `/api/webhook` (por IP), `/api/leads/ingest` y `/api/crm/sync` (por API key).
+- **RBAC** en writes de finanzas: `save-ingreso`/`delete-ingreso`/`save-egreso`/`delete-egreso` exigen rol ≥ admin (`roleRank < 2` → 403).
+- **`auth-helpers.ts`** unificado: importa `ALLOWED_EMAILS` de `allowed-emails.ts` (no hardcode).
+- **RLS deny-all** en tablas core: `supabase/migrations/2026-06-13-rls-core-tables.sql` — habilita RLS en `crm_leads`, `crm_ingresos`, `crm_egresos`, `crm_state`, `crm_profiles`, `crm_api_keys`, `crm_onboarding_docs`, `crm_proposals`. El server usa service_role (BYPASSRLS); cierra el bypass del anon key público. **⚠️ Correr en Supabase SQL Editor.**
+- **Cash collect** (corazón del dashboard):
+  - `src/lib/cobranzas.ts` — aging buckets (corriente / 1-7 / 8-30 / 31+), `carteraAbierta`, `proximaAccion`.
+  - `src/lib/forecast.ts` — `STAGE_PROBABILITY` por etapa (lead .1, contacted .3, in_progress .6, closed 1, recalentar .05), `pipelinePonderado`, `forecastMes` (suscripciones + pipeline ponderado).
+  - `CashCollectWidget` — cobrado vs meta (barra de progreso), por-cobrar, vencido, forecast del mes.
+  - `AgingBreakdown` — desglose por antigüedad + top facturas urgentes con CTA "Recordar" (WhatsApp, pendiente de cablear al agentkit).
+- **Bug fix**: selector de scope 7d/30d/90d del dashboard ahora filtra ingresos/egresos por ventana de días real (antes guardaba el estado pero no filtraba nada).
+
 FASE 3, 4 pendientes (pipeline kanban, agentes config UI)
+Pendiente cash collect: cablear "Recordar" al WhatsApp agentkit (disparo + registro de acción por factura).

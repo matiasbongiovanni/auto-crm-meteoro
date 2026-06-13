@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateApiKey, requireScope } from "@/lib/api-auth";
 import { getSupabaseServerClient } from "@/lib/server-supabase";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -17,6 +18,10 @@ export async function GET(request: NextRequest) {
   const ctx = await authenticateApiKey(request);
   const denied = requireScope(ctx, "read");
   if (denied) return denied;
+
+  if (!rateLimit(`sync:${ctx!.keyId}`, { limit: 120, windowMs: 60_000 })) {
+    return NextResponse.json({ error: "Rate limit excedido" }, { status: 429 });
+  }
 
   const { searchParams } = new URL(request.url);
   const temperatureParam = searchParams.get("temperature") || "cold";
