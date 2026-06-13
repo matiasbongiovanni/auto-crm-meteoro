@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { deals, contacts, pipelineStages } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
+import { requireAuth, isAuthResponse } from "@/lib/auth-helpers";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await requireAuth(request.headers.get("authorization"));
+  if (isAuthResponse(auth)) return auth;
   const results = await db
     .select({
       id: deals.id,
@@ -34,6 +37,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request.headers.get("authorization"));
+  if (isAuthResponse(auth)) return auth;
   let body;
   try {
     body = await request.json();

@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPublicSupabaseEnv } from "@/lib/supabase-env";
+import { ALLOWED_EMAILS } from "@/lib/allowed-emails";
 
 export const runtime = "nodejs";
 
 const AGENTKIT_URL = process.env.AGENTKIT_URL ?? "http://localhost:8000";
 const AGENTKIT_TOKEN = process.env.AGENTKIT_ADMIN_TOKEN ?? "";
+const ALLOWED_SECTIONS = ["prompts", "prospection", "business", "env"] as const;
+type AllowedSection = (typeof ALLOWED_SECTIONS)[number];
 
 async function readUser(authHeader: string | null) {
   if (!authHeader) return null;
@@ -17,7 +20,13 @@ async function readUser(authHeader: string | null) {
     cache: "no-store",
   });
   if (!res.ok) return null;
-  return res.json();
+  const user = await res.json();
+  if (!user?.email || !ALLOWED_EMAILS.includes(user.email.toLowerCase())) return null;
+  return user;
+}
+
+function isAllowedSection(s: string | null): s is AllowedSection {
+  return ALLOWED_SECTIONS.includes(s as AllowedSection);
 }
 
 export async function GET(request: NextRequest) {
@@ -25,7 +34,7 @@ export async function GET(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const section = request.nextUrl.searchParams.get("section");
-  if (!section) return NextResponse.json({ error: "Parámetro 'section' requerido" }, { status: 400 });
+  if (!isAllowedSection(section)) return NextResponse.json({ error: "Sección inválida" }, { status: 400 });
 
   try {
     const res = await fetch(`${AGENTKIT_URL}/config/${section}`, {
@@ -44,7 +53,7 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const section = request.nextUrl.searchParams.get("section");
-  if (!section) return NextResponse.json({ error: "Parámetro 'section' requerido" }, { status: 400 });
+  if (!isAllowedSection(section)) return NextResponse.json({ error: "Sección inválida" }, { status: 400 });
 
   const body = await request.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Body JSON inválido" }, { status: 400 });

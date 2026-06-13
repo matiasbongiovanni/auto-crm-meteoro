@@ -197,8 +197,8 @@ export type UsageOverview = {
     combinedTokens: number;
   };
   ingestion: {
-    claudeDir: string | null;
-    codexDbPath: string | null;
+    claudeAvailable: boolean;
+    codexAvailable: boolean;
     mode: "local" | "disabled";
     available: boolean;
     reason: string | null;

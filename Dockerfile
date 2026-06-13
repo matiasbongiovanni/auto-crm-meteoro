@@ -1,4 +1,6 @@
-FROM node:22-slim
+FROM node:22.16.0-slim
+LABEL org.opencontainers.image.title="auto-crm" \
+      org.opencontainers.image.source="https://github.com/matiasbongiovanni/auto-crm"
 
 WORKDIR /app
 
@@ -17,11 +19,15 @@ COPY . .
 # Build the application
 RUN npm run build
 
-# Create data directory
-RUN mkdir -p data
+# Create data directory with correct permissions
+RUN mkdir -p /app/data && chown -R node:node /app
 
-# Initialize database
-RUN npx tsx scripts/init.ts
+# Copy entrypoint before switching user (requires root to write to /usr/local/bin)
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Run as non-root user
+USER node
 
 # Expose port
 EXPOSE 3000
@@ -29,4 +35,8 @@ EXPOSE 3000
 ENV NODE_ENV=production
 ENV HOSTNAME="0.0.0.0"
 
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/api/exchange',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"
+
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["npm", "start"]

@@ -3,8 +3,9 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
 export async function GET() {
-  const script = `var API_KEY = "met_live_r-hnITbM_moxQEudd-VfZ0ikyrZwtmGyk";
-var BASE_URL = "https://auto-crm-hazel.vercel.app";
+  const BASE_URL = "https://auto-crm-hazel.vercel.app";
+  const script = `var BASE_URL = "${BASE_URL}";
+var API_KEY = args.widgetParameter || "";
 var C = {
   bg: new Color("#0a0a0a"), card: new Color("#111111"),
   primary: new Color("#fafafa"), muted: new Color("#555555"),
@@ -13,7 +14,8 @@ var C = {
   border: new Color("#1f1f1f")
 };
 async function fetchMetrics() {
-  var req = new Request(BASE_URL + "/api/widget?key=" + API_KEY);
+  var req = new Request(BASE_URL + "/api/widget");
+  req.headers = {"Authorization": "Bearer " + API_KEY};
   req.timeoutInterval = 10;
   try { return await req.loadJSON(); } catch(e) { return null; }
 }
@@ -53,7 +55,7 @@ async function buildWidget(data, logo) {
   w.setPadding(12, 14, 10, 14);
   w.refreshAfterDate = new Date(Date.now() + 15*60*1000);
   if (!data || !data.ok) {
-    var e = w.addText("Sin datos");
+    var e = w.addText(!API_KEY ? "Configurá API Key en widget parameter" : "Sin datos");
     e.textColor = C.warning; e.font = Font.mediumSystemFont(12);
     return w;
   }

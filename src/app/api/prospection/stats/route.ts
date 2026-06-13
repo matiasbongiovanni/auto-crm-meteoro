@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { contacts, activities } from "@/db/schema";
 import { eq, and, gte } from "drizzle-orm";
+import { requireAuth, isAuthResponse } from "@/lib/auth-helpers";
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAuth(request.headers.get("authorization"));
+  if (isAuthResponse(auth)) return auth;
   try {
     const searchParams = new URL(request.url).searchParams;
     const daysParam = searchParams.get("days") || "7";

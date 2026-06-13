@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { contacts } from "@/db/schema";
+import { requireAuth, isAuthResponse } from "@/lib/auth-helpers";
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request.headers.get("authorization"));
+  if (isAuthResponse(auth)) return auth;
   let body;
   try {
     body = await request.json();

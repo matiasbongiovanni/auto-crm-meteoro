@@ -3,9 +3,12 @@ import { db } from "@/db";
 import { contacts, activities } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { classifyLead, isAIEnabled } from "@/lib/claude";
+import { requireAuth, isAuthResponse } from "@/lib/auth-helpers";
 import { calculateLeadScore, suggestTemperature } from "@/lib/scoring";
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request.headers.get("authorization"));
+  if (isAuthResponse(auth)) return auth;
   let body;
   try {
     body = await request.json();

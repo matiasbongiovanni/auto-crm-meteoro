@@ -2,14 +2,17 @@ services:
   crm:
     build: .
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     volumes:
-      # Persist database outside container
       - ./data:/app/data
-      # Persist user config
       - ./crm-config.json:/app/crm-config.json
     environment:
       - NODE_ENV=production
-      # Optional: uncomment and set your API key for AI features
-      # - ANTHROPIC_API_KEY=sk-ant-...
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M

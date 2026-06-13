@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { deals } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { requireAuth, isAuthResponse } from "@/lib/auth-helpers";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth(request.headers.get("authorization"));
+  if (isAuthResponse(auth)) return auth;
   const { id } = await params;
 
   const [deal] = await db.select().from(deals).where(eq(deals.id, id));
@@ -25,6 +28,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth(request.headers.get("authorization"));
+  if (isAuthResponse(auth)) return auth;
   const { id } = await params;
 
   let body;
@@ -66,9 +71,11 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth(request.headers.get("authorization"));
+  if (isAuthResponse(auth)) return auth;
   const { id } = await params;
 
   const [existing] = await db.select().from(deals).where(eq(deals.id, id));

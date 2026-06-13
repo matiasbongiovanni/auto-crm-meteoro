@@ -202,7 +202,9 @@ function handleTool(name: string, args: Record<string, unknown>): unknown {
         sql += " WHERE " + conditions.join(" AND ");
       }
       sql += " ORDER BY created_at DESC";
-      sql += ` LIMIT ${Number(args.limit) || 50}`;
+      const rawLimit = Number(args.limit);
+      const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(Math.floor(rawLimit), 500) : 50;
+      sql += ` LIMIT ${limit}`;
 
       return db.prepare(sql).all(...params);
     }
@@ -435,7 +437,14 @@ function handleMessage(msg: MCPMessage): MCPMessage | null {
   if (!msg.method) return null;
 
   switch (msg.method) {
-    case "initialize":
+    case "initialize": {
+      if (MCP_TOKEN) {
+        const provided = (msg.params as Record<string, unknown> | undefined)?._meta as Record<string, unknown> | undefined;
+        const token = provided?.authToken as string | undefined;
+        if (token !== MCP_TOKEN) {
+          return { jsonrpc: "2.0", id: msg.id, error: { code: -32600, message: "Authentication required" } };
+        }
+      }
       return {
         jsonrpc: "2.0",
         id: msg.id,
@@ -448,6 +457,7 @@ function handleMessage(msg: MCPMessage): MCPMessage | null {
           },
         },
       };
+    }
 
     case "notifications/initialized":
       return null;
@@ -501,4 +511,9 @@ function handleMessage(msg: MCPMessage): MCPMessage | null {
   }
 }
 
-process.stderr.write("Auto-CRM MCP Server running\n");
+const MCP_TOKEN = process.env.MCP_SECRET_TOKEN;
+if (MCP_TOKEN) {
+  process.stderr.write("Auto-CRM MCP Server running (auth required)\n");
+} else {
+  process.stderr.write("Auto-CRM MCP Server running\n");
+}

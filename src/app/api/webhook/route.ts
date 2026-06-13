@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { db } from "@/db";
 import { contacts, activities, crmSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -49,14 +50,17 @@ export async function POST(request: NextRequest) {
     .from(crmSettings)
     .where(eq(crmSettings.key, "webhook_secret"));
 
-  if (stored) {
-    const secretHeader = request.headers.get("x-webhook-secret");
-    if (!secretHeader || secretHeader !== stored.value) {
-      return NextResponse.json(
-        { error: "Secret invalido o faltante" },
-        { status: 401 }
-      );
-    }
+  if (!stored) {
+    return NextResponse.json({ error: "Webhook no configurado" }, { status: 401 });
+  }
+  const secretHeader = request.headers.get("x-webhook-secret");
+  if (!secretHeader) {
+    return NextResponse.json({ error: "Secret inválido o faltante" }, { status: 401 });
+  }
+  const a = Buffer.from(secretHeader);
+  const b = Buffer.from(stored.value);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
+    return NextResponse.json({ error: "Secret inválido o faltante" }, { status: 401 });
   }
 
   let payload: Record<string, unknown>;
@@ -116,12 +120,7 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error) {
-    return NextResponse.json(
-      {
-        error: `Error al crear contacto: ${error instanceof Error ? error.message : "Unknown"}`,
-      },
-      { status: 500 }
-    );
+  } catch {
+    return NextResponse.json({ error: "Error interno al crear contacto" }, { status: 500 });
   }
 }

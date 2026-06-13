@@ -1,5 +1,6 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
+import { requireAuth, isAuthResponse } from "@/lib/auth-helpers";
 import { contacts, deals, pipelineStages } from "@/db/schema";
 import { eq, desc, asc } from "drizzle-orm";
 import { formatDate, formatCurrency } from "@/lib/constants";
@@ -22,6 +23,8 @@ function buildCSV(headers: string[], rows: string[][]): string {
 }
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAuth(request.headers.get("authorization"));
+  if (isAuthResponse(auth)) return auth;
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type") || "contacts";
   const today = new Date().toISOString().split("T")[0];

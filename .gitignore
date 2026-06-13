@@ -52,3 +52,10 @@ data/crm.db-wal
 
 # drizzle
 /drizzle/
+
+# credentials / keys
+*.key
+*.p12
+*.pfx
+credentials.json
+service-account*.json

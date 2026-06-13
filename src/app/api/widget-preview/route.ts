@@ -4,29 +4,52 @@ import { getSupabaseServerClient } from "@/lib/server-supabase";
 
 export const runtime = "nodejs";
 
-async function authenticate(request: NextRequest): Promise<boolean> {
-  const key = new URL(request.url).searchParams.get("key") || "";
-  if (!key.startsWith("met_live_")) return false;
+async function authenticate(request: NextRequest): Promise<string | null> {
+  const header = request.headers.get("authorization") || "";
+  const key = header.replace(/^Bearer\s+/i, "").trim();
+  if (!key.startsWith("met_live_")) return null;
   const admin = getSupabaseServerClient();
-  const { data } = await admin.from("crm_api_keys").select("id,revoked_at").eq("key_hash", hashApiKey(key)).maybeSingle();
-  return !!(data && !data.revoked_at);
+  const { data } = await admin
+    .from("crm_api_keys")
+    .select("id,revoked_at")
+    .eq("key_hash", hashApiKey(key))
+    .maybeSingle();
+  return data && !data.revoked_at ? key : null;
 }
 
 export async function GET(request: NextRequest) {
-  const ok = await authenticate(request);
-  if (!ok) return new NextResponse("Unauthorized", { status: 401 });
+  const key = await authenticate(request);
+  if (!key) return new NextResponse("Unauthorized", { status: 401 });
 
   const base = new URL(request.url).origin;
-  const dataRes = await fetch(`${base}/api/widget?key=${new URL(request.url).searchParams.get("key")}`);
-  const data = await dataRes.json() as {
-    ok: boolean; month: string; updatedAt: string;
-    metrics: { presupuestadoMes: number; cantPresupuestosMes: number; cobradoMes: number; netoMes: number; ticketPromedio: number; pendientesMes: number; cantPendientesMes: number };
+  const dataRes = await fetch(`${base}/api/widget`, {
+    headers: { authorization: `Bearer ${key}` },
+  });
+  const data = (await dataRes.json()) as {
+    ok: boolean;
+    month: string;
+    updatedAt: string;
+    metrics: {
+      presupuestadoMes: number;
+      cantPresupuestosMes: number;
+      cobradoMes: number;
+      netoMes: number;
+      ticketPromedio: number;
+      pendientesMes: number;
+      cantPendientesMes: number;
+    };
     presupuestosByEstado: Record<string, number>;
   };
 
   const m = data.metrics;
-  const mn = new Date(data.month + "-15").toLocaleString("es-AR", { month: "long", year: "numeric" });
-  const time = new Date(data.updatedAt).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+  const mn = new Date(data.month + "-15").toLocaleString("es-AR", {
+    month: "long",
+    year: "numeric",
+  });
+  const time = new Date(data.updatedAt).toLocaleTimeString("es-AR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   function fmtUsd(n: number) {
     if (!n && n !== 0) return "--";
@@ -36,12 +59,27 @@ export async function GET(request: NextRequest) {
 
   const topCols = [
     { label: "Cobrado mes", value: fmtUsd(m.cobradoMes), sub: "ingresos", color: "#22c55e" },
-    { label: "Neto mes", value: fmtUsd(m.netoMes), sub: "ing-egr", color: m.netoMes >= 0 ? "#22c55e" : "#ef4444" },
+    {
+      label: "Neto mes",
+      value: fmtUsd(m.netoMes),
+      sub: "ing-egr",
+      color: m.netoMes >= 0 ? "#22c55e" : "#ef4444",
+    },
     { label: "Ticket prom.", value: fmtUsd(m.ticketPromedio), sub: "por cliente", color: "#a3a3a3" },
   ];
   const botCols = [
-    { label: "Presup. total", value: fmtUsd((m as any).presupuestadoTotal ?? m.presupuestadoMes), sub: `${(m as any).cantPresupuestosTotal ?? m.cantPresupuestosMes} docs`, color: "#a3a3a3" },
-    { label: "Pendiente total", value: fmtUsd((m as any).pendientesTotal ?? m.pendientesMes), sub: `${m.cantPendientesMes} este mes`, color: (m as any).pendientesTotal > 0 ? "#f59e0b" : "#22c55e" },
+    {
+      label: "Presup. total",
+      value: fmtUsd((m as any).presupuestadoTotal ?? m.presupuestadoMes),
+      sub: `${(m as any).cantPresupuestosTotal ?? m.cantPresupuestosMes} docs`,
+      color: "#a3a3a3",
+    },
+    {
+      label: "Pendiente total",
+      value: fmtUsd((m as any).pendientesTotal ?? m.pendientesMes),
+      sub: `${m.cantPendientesMes} este mes`,
+      color: (m as any).pendientesTotal > 0 ? "#f59e0b" : "#22c55e",
+    },
   ];
 
   const estChips = [
@@ -58,15 +96,7 @@ export async function GET(request: NextRequest) {
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #1a1a1a; display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: -apple-system, sans-serif; padding: 20px; }
-  .widget {
-    background: #0a0a0a;
-    border-radius: 22px;
-    padding: 13px 15px 11px 15px;
-    width: 338px;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-  }
+  .widget { background: #0a0a0a; border-radius: 22px; padding: 13px 15px 11px 15px; width: 338px; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0,0,0,0.6); }
   .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
   .logo { height: 19px; opacity: 0.9; }
   .date-pill { background: #111; border-radius: 5px; padding: 3px 7px; font-size: 8px; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 0.05em; }
@@ -91,29 +121,42 @@ export async function GET(request: NextRequest) {
     <div class="date-pill">${mn}</div>
   </div>
   <div class="row">
-    ${topCols.map((c, i) => `
-      ${i > 0 ? '<div class="divider-v"></div>' : ''}
+    ${topCols
+      .map(
+        (c, i) => `
+      ${i > 0 ? '<div class="divider-v"></div>' : ""}
       <div class="metric">
         <div class="metric-label">${c.label}</div>
         <div class="metric-value" style="color:${c.color}">${c.value}</div>
         <div class="metric-sub">${c.sub}</div>
       </div>
-    `).join('')}
+    `
+      )
+      .join("")}
   </div>
   <div class="divider-h"></div>
   <div class="row">
-    ${botCols.map((c, i) => `
-      ${i > 0 ? '<div class="divider-v"></div>' : ''}
+    ${botCols
+      .map(
+        (c, i) => `
+      ${i > 0 ? '<div class="divider-v"></div>' : ""}
       <div class="metric">
         <div class="metric-label">${c.label}</div>
         <div class="metric-value" style="color:${c.color}">${c.value}</div>
         <div class="metric-sub">${c.sub}</div>
       </div>
-    `).join('')}
+    `
+      )
+      .join("")}
   </div>
   <div class="footer">
     <div class="chips">
-      ${estChips.map(e => `<div class="chip" style="color:${e.color}">${e.label} ${data.presupuestosByEstado[e.key] || 0}</div>`).join('')}
+      ${estChips
+        .map(
+          (e) =>
+            `<div class="chip" style="color:${e.color}">${e.label} ${data.presupuestosByEstado[e.key] || 0}</div>`
+        )
+        .join("")}
     </div>
     <div class="ts">act. ${time}</div>
   </div>

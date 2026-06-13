@@ -1,9 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { activities, contacts } from "@/db/schema";
 import { eq, isNull, asc } from "drizzle-orm";
+import { requireAuth, isAuthResponse } from "@/lib/auth-helpers";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await requireAuth(request.headers.get("authorization"));
+  if (isAuthResponse(auth)) return auth;
   const pendingFollowups = await db
     .select({
       id: activities.id,

@@ -1,10 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { contacts, deals, activities, pipelineStages } from "@/db/schema";
 import { eq, asc, isNull } from "drizzle-orm";
 import { formatCurrency } from "@/lib/constants";
+import { requireAuth, isAuthResponse } from "@/lib/auth-helpers";
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request.headers.get("authorization"));
+  if (isAuthResponse(auth)) return auth;
   const apiKey = process.env.RESEND_API_KEY;
   const email = process.env.DIGEST_EMAIL;
 

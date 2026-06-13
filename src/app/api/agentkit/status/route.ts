@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getPublicSupabaseEnv } from "@/lib/supabase-env";
+import { ALLOWED_EMAILS } from "@/lib/allowed-emails";
 
 export const runtime = "nodejs";
 
@@ -17,7 +18,9 @@ async function readUser(authHeader: string | null) {
     cache: "no-store",
   });
   if (!res.ok) return null;
-  return res.json();
+  const user = await res.json();
+  if (!user?.email || !ALLOWED_EMAILS.includes(user.email.toLowerCase())) return null;
+  return user;
 }
 
 export async function GET(request: Request) {

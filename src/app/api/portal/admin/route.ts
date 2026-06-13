@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/server-supabase";
 import { getPublicSupabaseEnv } from "@/lib/supabase-env";
 import { sendPortalInvite } from "@/lib/portal-invite-email";
+import { ALLOWED_EMAILS } from "@/lib/allowed-emails";
 
 async function verifyMati(request: NextRequest) {
   const authHeader = request.headers.get("authorization") || "";
@@ -14,7 +15,9 @@ async function verifyMati(request: NextRequest) {
     cache: "no-store",
   });
   if (!res.ok) return null;
-  return res.json();
+  const user = await res.json();
+  if (!user?.email || !ALLOWED_EMAILS.includes(user.email.toLowerCase())) return null;
+  return user;
 }
 
 export async function GET(request: NextRequest) {

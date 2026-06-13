@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/server-supabase";
 import { getPublicSupabaseEnv } from "@/lib/supabase-env";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  if (!rateLimit(`portal-auth:${ip}`, { limit: 10, windowMs: 60_000 })) {
+    return NextResponse.json(
+      { ok: false, error: "Demasiados intentos. Intentá en un minuto." },
+      { status: 429 }
+    );
+  }
+
   try {
     const { email, password } = await request.json();
     if (!email || !password) {

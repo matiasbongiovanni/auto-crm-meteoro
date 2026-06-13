@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { contacts } from "@/db/schema";
 import { eq, like, or, desc } from "drizzle-orm";
+import { requireAuth, isAuthResponse } from "@/lib/auth-helpers";
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAuth(request.headers.get("authorization"));
+  if (isAuthResponse(auth)) return auth;
   const { searchParams } = new URL(request.url);
   const search = searchParams.get("search");
   const temperature = searchParams.get("temperature");
@@ -34,6 +37,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request.headers.get("authorization"));
+  if (isAuthResponse(auth)) return auth;
   let body;
   try {
     body = await request.json();
