@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2, Eye } from "lucide-react";
+import { Plus, Trash2, Eye, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,8 +9,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { DocumentPreview } from "./document-preview";
+import { AiBriefDialog } from "./ai-brief";
 import { defaultPresupuesto } from "@/lib/documents/defaults";
 import type { PresupuestoData, ItemCotizacion, PlanMensual } from "@/lib/documents/types";
+import type { DraftDocResult } from "@/lib/ai-prompts";
 import type { Proposal, ProposalStatus } from "@/types/crm";
 
 const ESTADOS: ProposalStatus[] = ["enviado", "en_negociacion", "aceptado", "rechazado", "vencido"];
@@ -32,6 +34,7 @@ type Props = {
 export function PresupuestoEditor({ proposal, clienteDefault = "", nextNumero, onSave, onClose }: Props) {
   const [saving, setSaving] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const [estado, setEstado] = useState<ProposalStatus>(proposal?.estado ?? "enviado");
 
   const isNew = !proposal;
@@ -71,6 +74,32 @@ export function PresupuestoEditor({ proposal, clienteDefault = "", nextNumero, o
     upd({ planes: data.planes.filter((_, i) => i !== idx) });
   }
 
+  // Aplica el borrador de la IA solo a los campos de contenido (no toca número/fecha/contacto/footer).
+  function applyAiDraft(d: DraftDocResult) {
+    const patch: Partial<PresupuestoData> = {};
+    if (typeof d.proyecto === "string" && d.proyecto.trim()) patch.proyecto = d.proyecto;
+    if (d.moneda === "ARS" || d.moneda === "USD" || d.moneda === "EUR") patch.moneda = d.moneda;
+    if (typeof d.notas === "string" && d.notas.trim()) patch.notas = d.notas;
+    if (Array.isArray(d.items) && d.items.length > 0) {
+      patch.items = (d.items as Record<string, unknown>[]).map((it) => ({
+        nombre: String(it?.nombre ?? ""),
+        descripcion: String(it?.descripcion ?? ""),
+        cantidad: Number(it?.cantidad) || 1,
+        precio: Number(it?.precio) || 0,
+      }));
+    }
+    if (Array.isArray(d.planes) && d.planes.length > 0) {
+      patch.planes = (d.planes as Record<string, unknown>[]).map((p) => ({
+        nombre: String(p?.nombre ?? ""),
+        descripcion: String(p?.descripcion ?? ""),
+        precio: Number(p?.precio) || 0,
+      }));
+      patch.includePlanes = true;
+    }
+    if (typeof d.includePlanes === "boolean") patch.includePlanes = d.includePlanes;
+    upd(patch);
+  }
+
   const sub = data.items.reduce((a, it) => a + it.cantidad * it.precio, 0);
   const iva = data.incluyeIva ? sub * 0.21 : 0;
   const total = sub + iva;
@@ -106,6 +135,13 @@ export function PresupuestoEditor({ proposal, clienteDefault = "", nextNumero, o
 
   return (
     <div className="space-y-6">
+      {/* Redactar con IA */}
+      <div className="flex justify-end">
+        <Button type="button" variant="outline" size="sm" className="gap-1.5 border-primary/40 text-primary hover:bg-primary/10" onClick={() => setAiOpen(true)}>
+          <Sparkles className="h-3.5 w-3.5" /> Redactar con IA
+        </Button>
+      </div>
+
       {/* Meta */}
       <fieldset className="space-y-3">
         <legend className="text-[10px] font-bold uppercase tracking-widest text-primary mb-2">Datos del documento</legend>
@@ -256,6 +292,8 @@ export function PresupuestoEditor({ proposal, clienteDefault = "", nextNumero, o
       {previewOpen && (
         <DocumentPreview tipo="presupuesto" data={data} open={previewOpen} onClose={() => setPreviewOpen(false)} />
       )}
+
+      <AiBriefDialog open={aiOpen} tipo="presupuesto" onClose={() => setAiOpen(false)} onResult={applyAiDraft} />
     </div>
   );
 }

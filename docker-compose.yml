@@ -8,6 +8,9 @@ services:
       - ./crm-config.json:/app/crm-config.json
     environment:
       - NODE_ENV=production
+      # Carga asistida por IA (claude -p). Token de suscripción generado con `claude setup-token`.
+      - ENABLE_CLAUDE_CLI=true
+      - CLAUDE_CODE_OAUTH_TOKEN=${CLAUDE_CODE_OAUTH_TOKEN}
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true

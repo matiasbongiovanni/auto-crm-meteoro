@@ -25,6 +25,7 @@ import type {
   VaultItem,
   VaultMeta,
 } from "@/types/crm";
+import type { DraftDocResult, DraftDocTipo, ParsedTask } from "@/lib/ai-prompts";
 
 type ActionStatus = "idle" | "loading" | "success" | "error";
 
@@ -96,6 +97,9 @@ type ContextValue = {
   vaultDeleteItem: (id: string) => Promise<void>;
   vaultLogAudit: (auditAction: string, item_id?: string) => Promise<void>;
   vaultListAudit: () => Promise<import("@/types/crm").VaultAuditEntry[]>;
+  // Carga asistida por IA (claude -p) — no persisten, solo proponen
+  parseTareasAI: (text: string) => Promise<ParsedTask[]>;
+  draftDocumentoAI: (tipo: DraftDocTipo, brief: string) => Promise<DraftDocResult>;
 };
 
 const CrmContext = createContext<ContextValue | null>(null);
@@ -375,6 +379,25 @@ export function CrmProvider({ children }: { children: React.ReactNode }) {
           body: JSON.stringify({ action: "vault-list-audit" }),
         });
         return r.entries;
+      },
+      // Carga asistida por IA — llaman endpoints dedicados, no tocan el estado global
+      parseTareasAI: async (text) => {
+        if (!session?.access_token) throw new Error("No active session");
+        const r = await fetchJson<{ ok: boolean; events: ParsedTask[] }>("/api/ai/parse-tareas", {
+          method: "POST", cache: "no-store",
+          headers: { "content-type": "application/json", authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ text }),
+        });
+        return r.events || [];
+      },
+      draftDocumentoAI: async (tipo, brief) => {
+        if (!session?.access_token) throw new Error("No active session");
+        const r = await fetchJson<{ ok: boolean; datos: DraftDocResult }>("/api/ai/draft-documento", {
+          method: "POST", cache: "no-store",
+          headers: { "content-type": "application/json", authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ tipo, brief }),
+        });
+        return r.datos || {};
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps

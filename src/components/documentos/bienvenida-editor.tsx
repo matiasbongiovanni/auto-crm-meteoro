@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2, Eye } from "lucide-react";
+import { Plus, Trash2, Eye, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,8 +9,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { DocumentPreview } from "./document-preview";
+import { AiBriefDialog } from "./ai-brief";
 import { defaultBienvenida, defaultOnboarding } from "@/lib/documents/defaults";
 import type { BienvenidaData, OnboardingData, SeccionOnboarding, FaseOnboarding } from "@/lib/documents/types";
+import type { DraftDocResult } from "@/lib/ai-prompts";
 import type { OnboardingDoc } from "@/types/crm";
 
 type Props = {
@@ -24,6 +26,7 @@ type Props = {
 export function BienvenidaEditor({ doc, clienteDefault = "", defaultTipo, onSave, onClose }: Props) {
   const [saving, setSaving] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const [tipo, setTipo] = useState<OnboardingDoc["tipo"]>(doc?.tipo ?? defaultTipo ?? "bienvenida");
   const [estado, setEstado] = useState<OnboardingDoc["estado"]>(doc?.estado ?? "borrador");
   const [notasCRM, setNotasCRM] = useState(doc?.notas ?? "");
@@ -73,6 +76,40 @@ export function BienvenidaEditor({ doc, clienteDefault = "", defaultTipo, onSave
     updO({ fases: onboardingData.fases.filter((_, i) => i !== idx) });
   }
 
+  // Aplica el borrador de la IA al tipo activo (no toca cliente/empresa/fecha/firma).
+  function applyAiDraft(d: DraftDocResult) {
+    if (tipo === "bienvenida") {
+      const patch: Partial<BienvenidaData> = {};
+      if (typeof d.mensaje === "string" && d.mensaje.trim()) { patch.mensaje = d.mensaje; patch.showMensaje = true; }
+      if (typeof d.pasos === "string" && d.pasos.trim()) { patch.pasos = d.pasos; patch.showPasos = true; }
+      updB(patch);
+      return;
+    }
+    const patch: Partial<OnboardingData> = {};
+    if (Array.isArray(d.secciones) && d.secciones.length > 0) {
+      patch.secciones = (d.secciones as Record<string, unknown>[]).map((s) => ({
+        titulo: String(s?.titulo ?? ""), contenido: String(s?.contenido ?? ""),
+      }));
+      patch.showSecciones = true;
+    }
+    if (Array.isArray(d.fases) && d.fases.length > 0) {
+      patch.fases = (d.fases as Record<string, unknown>[]).map((f) => {
+        const estado = String(f?.estado);
+        return {
+          nombre: String(f?.nombre ?? ""),
+          duracion: String(f?.duracion ?? ""),
+          estado: (["pendiente", "en-curso", "completado"].includes(estado) ? estado : "pendiente") as FaseOnboarding["estado"],
+          desc: String(f?.desc ?? ""),
+        };
+      });
+      patch.showFases = true;
+    }
+    if (typeof d.entregables === "string" && d.entregables.trim()) { patch.entregables = d.entregables; patch.showEntregables = true; }
+    if (typeof d.compromisos === "string" && d.compromisos.trim()) { patch.compromisos = d.compromisos; patch.showCompromisos = true; }
+    if (typeof d.sla === "string" && d.sla.trim()) { patch.sla = d.sla; patch.showSla = true; }
+    updO(patch);
+  }
+
   async function handleSave() {
     setSaving(true);
     try {
@@ -118,6 +155,12 @@ export function BienvenidaEditor({ doc, clienteDefault = "", defaultTipo, onSave
           ))}
         </div>
       </fieldset>
+
+      <div className="flex justify-end">
+        <Button type="button" variant="outline" size="sm" className="gap-1.5 border-primary/40 text-primary hover:bg-primary/10" onClick={() => setAiOpen(true)}>
+          <Sparkles className="h-3.5 w-3.5" /> Redactar con IA
+        </Button>
+      </div>
 
       {/* ── BIENVENIDA ── */}
       {tipo === "bienvenida" && (
@@ -355,6 +398,8 @@ export function BienvenidaEditor({ doc, clienteDefault = "", defaultTipo, onSave
       {previewOpen && (
         <DocumentPreview {...previewProps} open={previewOpen} onClose={() => setPreviewOpen(false)} />
       )}
+
+      <AiBriefDialog open={aiOpen} tipo={tipo} onClose={() => setAiOpen(false)} onResult={applyAiDraft} />
     </div>
   );
 }

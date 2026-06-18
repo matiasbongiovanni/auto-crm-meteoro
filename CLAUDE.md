@@ -84,6 +84,8 @@ npm run mcp        # Servidor MCP (Claude Desktop/Web)
 - `/api/portal/auth` — POST login portal (email+password) → Supabase signIn + cookie `portal_token`
 - `/api/portal/project` — GET datos del proyecto del cliente (autenticado con cookie portal)
 - `/api/portal/admin` — GET/POST CRUD del portal (autenticado con Bearer token de Mati)
+- `/api/ai/parse-tareas` — POST `{text}` → tareas estructuradas (`CalendarEvent`) vía `claude -p` (Haiku). Auth + rate limit. No persiste.
+- `/api/ai/draft-documento` — POST `{tipo, brief}` → datos de presupuesto/bienvenida/onboarding vía `claude -p` (Sonnet low effort). Auth + rate limit. No persiste.
 
 ## Variables de entorno
 
@@ -195,5 +197,22 @@ FASE SEGURIDAD + CASH COLLECT ✓ (2026-06-13):
   - `AgingBreakdown` — desglose por antigüedad + top facturas urgentes con CTA "Recordar" (WhatsApp, pendiente de cablear al agentkit).
 - **Bug fix**: selector de scope 7d/30d/90d del dashboard ahora filtra ingresos/egresos por ventana de días real (antes guardaba el estado pero no filtraba nada).
 
+FASE ACCIONES 1-CLICK ✓ (2026-06-18):
+- **Centro de Acciones** (`CentroAcciones.tsx`): panel "Hoy · qué hacer" arriba del dashboard. Agrega en una sola lista priorizada (urgentes primero): facturas vencidas, seguimientos de propuestas vencidos/hoy, renovaciones ≤7d y tareas/eventos de hoy+vencidos no completados. Cada ítem con acción 1-click.
+- **WhatsApp 1-click** (`src/lib/whatsapp.ts`): `buildWhatsAppUrl` (wa.me + texto encoded), `findTelefono` (matchea nombre/empresa contra clientes+leads), plantillas rioplatenses `msgCobro`/`msgSeguimientoPropuesta`/`msgRenovacion`. Abre WhatsApp con mensaje pre-armado; no envía automático.
+- **AgingBreakdown**: botón "Recordar" ahora abre WhatsApp con recordatorio de cobro (antes solo toast). Recibe `leads` para resolver teléfono.
+- Solo código, sin migraciones SQL ni credenciales nuevas. Plan: `planes/2026-06-18-crm-acciones-1click.md`.
+
+FASE CARGA CON IA (claude -p) ✓ (2026-06-18):
+- **Motor**: `src/lib/claude-cli.ts` — `runClaudeJson<T>(prompt, system, {model, effort})` ejecuta `claude -p --output-format json` con `spawn`+stdin (sin shell, sin inyección). Usa la suscripción Claude Code del host, NO `ANTHROPIC_API_KEY`. Tools de escritura/red deshabilitadas. Gate `isClaudeCliEnabled()` (`ENABLE_CLAUDE_CLI`).
+- **Prompts**: `src/lib/ai-prompts.ts` — `tareasSystemPrompt(hoy)` + `documentoSystemPrompt(tipo, hoy)`, español rioplatense, salida JSON estricta. Tipos `ParsedTask`, `DraftDocResult`.
+- **Endpoints** (auth + rate limit, no persisten): `/api/ai/parse-tareas` (Haiku) y `/api/ai/draft-documento` (Sonnet, effort low).
+- **Provider**: `parseTareasAI(text)` y `draftDocumentoAI(tipo, brief)` (fetch directo con token, no tocan estado global).
+- **UI Tareas**: botón "Cargar con IA" → `AiTaskParser.tsx` (dialog: texto libre → preview editable con incluir/excluir → loop `saveCalendarEvent`).
+- **UI Documentos**: botón "Redactar con IA" en `presupuesto-editor.tsx` y `bienvenida-editor.tsx` → `ai-brief.tsx` (genérico) → pre-rellena el editor (solo campos de contenido; contacto/fecha/firma quedan manuales).
+- **Modelos**: Haiku para tareas; Sonnet low effort para documentos (pedido de Mati).
+- **⚠️ Requiere self-hosted**: el CLI no existe en Vercel serverless. Flags en `.env.example` (`ENABLE_CLAUDE_CLI`, `CLAUDE_CLI_PATH`). Sin migraciones SQL.
+- Plan: `planes/2026-06-18-crm-claude-cli-inputs-ia.md`.
+
 FASE 3, 4 pendientes (pipeline kanban, agentes config UI)
-Pendiente cash collect: cablear "Recordar" al WhatsApp agentkit (disparo + registro de acción por factura).
+Pendiente (fase 2 acciones): cron para `generate-monthly-invoices` automático, digest diario, y envío automático vía whatsapp-agentkit (disparo + registro de acción por factura).

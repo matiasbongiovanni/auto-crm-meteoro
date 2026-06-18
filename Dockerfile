@@ -7,6 +7,12 @@ WORKDIR /app
 # Install build dependencies for better-sqlite3
 RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
 
+# Claude Code CLI — habilita la carga asistida por IA (`claude -p`) en /api/ai/*.
+# Auth en runtime vía CLAUDE_CODE_OAUTH_TOKEN (generar con `claude setup-token` en una
+# máquina logueada y cargarlo como secret). Sin token, los endpoints /api/ai/* devuelven 503
+# pero el resto del CRM funciona igual.
+RUN npm install -g @anthropic-ai/claude-code@2.1.181
+
 # Copy package files
 COPY package.json package-lock.json* ./
 

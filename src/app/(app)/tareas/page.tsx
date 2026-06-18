@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Check, Trash2, Building2 } from "lucide-react";
+import { Plus, Check, Trash2, Building2, Sparkles } from "lucide-react";
 import { useCrm } from "@/components/crm/provider";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -16,6 +16,7 @@ import { TaskMetrics } from "@/components/tareas/TaskMetrics";
 import { CalendarPro } from "@/components/tareas/CalendarPro";
 import { TaskCharts, ContributionHeatmap } from "@/components/tareas/TaskCharts";
 import { TaskToolbar } from "@/components/tareas/TaskToolbar";
+import { AiTaskParser } from "@/components/tareas/AiTaskParser";
 
 const TYPE_CONFIG: Record<CalendarEventType, { label: string; color: string }> = {
   tarea: { label: "Tarea", color: "text-amber-400 bg-amber-400/10 border-amber-400/20" },
@@ -110,6 +111,7 @@ export default function TareasPage() {
   const today = new Date();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const [editing, setEditing] = useState<CalendarEvent | null>(null);
 
   const todayStr = today.toISOString().slice(0, 10);
@@ -143,6 +145,10 @@ export default function TareasPage() {
 
       <div className="flex items-center justify-end gap-2">
         <TaskToolbar events={state.calendarEvents} onImport={handleImport} />
+        <Button size="sm" variant="outline" onClick={() => setAiOpen(true)}
+          className="border-border/50 gap-1.5">
+          <Sparkles className="h-3.5 w-3.5" /> Cargar con IA
+        </Button>
         <Button size="sm" onClick={() => { setSelectedDate(todayStr); setOpen(true); }}
           className="bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5">
           <Plus className="h-3.5 w-3.5" /> Nueva tarea
@@ -209,6 +215,8 @@ export default function TareasPage() {
           <CompanyNotesList notes={state.companyNotes} onSave={saveCompanyNote} onDelete={deleteCompanyNote} />
         </TabsContent>
       </Tabs>
+
+      <AiTaskParser open={aiOpen} onClose={() => setAiOpen(false)} companies={companies} />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="bg-card border-border/60 max-w-md">
