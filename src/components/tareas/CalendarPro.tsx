@@ -6,21 +6,23 @@ import {
   useDraggable, useDroppable, pointerWithin,
   type DragStartEvent, type DragEndEvent,
 } from "@dnd-kit/core";
-import { ChevronLeft, ChevronRight, Check, Trash2, Plus, CalendarDays, Clock, List } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, Trash2, Plus, CalendarRange, Columns3, CalendarDays, List } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { CalendarEvent } from "@/types/crm";
 import { TYPE_CONFIG, DAY_NAMES, MONTHS, localToday, toDateStr } from "@/lib/task-config";
+import { TimeGrid } from "@/components/tareas/TimeGrid";
+import { HOUR_PX, parseHM, minToHM } from "@/lib/calendar-time";
 
-type View = "mes" | "semana" | "agenda";
+type View = "dia" | "semana" | "mes" | "agenda";
 
 type Props = {
   events: CalendarEvent[];
   onToggle: (e: CalendarEvent) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
-  onNewEvent: (date: string) => void;
+  onNewEvent: (date: string, time?: string) => void;
   onEdit: (e: CalendarEvent) => void;
-  onReschedule: (e: CalendarEvent, newDate: string) => Promise<void>;
+  onReschedule: (e: CalendarEvent, newDate: string, newTime?: string) => Promise<void>;
 };
 
 function monthGrid(year: number, month: number): (number | null)[] {
@@ -77,7 +79,7 @@ function DroppableDay({ date, children, className, onClick }: {
 
 export function CalendarPro({ events, onToggle, onDelete, onNewEvent, onEdit, onReschedule }: Props) {
   const today = localToday();
-  const [view, setView] = useState<View>("mes");
+  const [view, setView] = useState<View>("dia");
   const [cursor, setCursor] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [active, setActive] = useState<CalendarEvent | null>(null);
@@ -100,7 +102,8 @@ export function CalendarPro({ events, onToggle, onDelete, onNewEvent, onEdit, on
 
   function shift(dir: number) {
     const d = new Date(cursor);
-    if (view === "semana") d.setDate(d.getDate() + dir * 7);
+    if (view === "dia") d.setDate(d.getDate() + dir);
+    else if (view === "semana") d.setDate(d.getDate() + dir * 7);
     else d.setMonth(d.getMonth() + dir);
     setCursor(d);
   }
@@ -109,19 +112,40 @@ export function CalendarPro({ events, onToggle, onDelete, onNewEvent, onEdit, on
   function handleStart(e: DragStartEvent) { setActive((e.active.data.current?.event as CalendarEvent) || null); }
   async function handleEnd(e: DragEndEvent) {
     const ev = e.active.data.current?.event as CalendarEvent | undefined;
-    const newDate = e.over?.id as string | undefined;
+    const overId = e.over?.id ? String(e.over.id) : undefined;
     setActive(null);
-    if (!ev || !newDate || newDate === ev.date) return;
-    try { await onReschedule(ev, newDate); toast.success(`Movido a ${newDate}`); }
+    if (!ev || !overId) return;
+
+    // Grilla horaria: id `tg:<fecha>` → cambia día y/o hora (delta vertical).
+    if (overId.startsWith("tg:")) {
+      const newDate = overId.slice(3);
+      let newTime: string | undefined;
+      const start = parseHM(ev.time);
+      if (start !== null) {
+        const shiftMin = Math.round((e.delta.y / HOUR_PX) * 60 / 15) * 15;
+        if (shiftMin !== 0) newTime = minToHM(start + shiftMin);
+      }
+      if (newDate === ev.date && !newTime) return;
+      try { await onReschedule(ev, newDate, newTime); toast.success("Reprogramado"); }
+      catch { toast.error("Error al reprogramar"); }
+      return;
+    }
+
+    // Vista mes: id = fecha → solo cambia el día.
+    if (overId === ev.date) return;
+    try { await onReschedule(ev, overId); toast.success(`Movido a ${overId}`); }
     catch { toast.error("Error al reprogramar"); }
   }
 
   const grid = monthGrid(year, month);
   const week = weekDays(cursor);
+  const cursorDate = toDateStr(year, month, cursor.getDate());
   const selectedEvents = selectedDate ? byDate.get(selectedDate) || [] : [];
 
-  const headerLabel = view === "semana"
-    ? `${week[0].slice(8)}–${week[6].slice(8)} ${MONTHS[new Date(week[6]).getMonth()]}`
+  const headerLabel = view === "dia"
+    ? cursor.toLocaleDateString("es-AR", { weekday: "short", day: "numeric", month: "short" })
+    : view === "semana"
+    ? `${week[0].slice(8)}–${week[6].slice(8)} ${MONTHS[new Date(week[6] + "T00:00:00").getMonth()]}`
     : `${MONTHS[month]} ${year}`;
 
   return (
@@ -146,7 +170,7 @@ export function CalendarPro({ events, onToggle, onDelete, onNewEvent, onEdit, on
           </div>
           {/* View switch */}
           <div className="flex items-center gap-0.5 bg-muted/30 rounded-lg p-0.5 border border-border/40">
-            {([["mes", CalendarDays], ["semana", Clock], ["agenda", List]] as const).map(([v, Icon]) => (
+            {([["dia", CalendarRange], ["semana", Columns3], ["mes", CalendarDays], ["agenda", List]] as const).map(([v, Icon]) => (
               <button key={v} onClick={() => setView(v)}
                 className={cn("flex items-center gap-1 px-2 py-1 rounded text-[11px] capitalize transition-colors",
                   view === v ? "bg-primary text-primary-foreground font-medium" : "text-muted-foreground hover:text-foreground")}>
@@ -155,6 +179,20 @@ export function CalendarPro({ events, onToggle, onDelete, onNewEvent, onEdit, on
             ))}
           </div>
         </div>
+
+        {/* DÍA */}
+        {view === "dia" && (
+          <TimeGrid days={[cursorDate]} events={events}
+            onNewSlot={(date, time) => onNewEvent(date, time)}
+            onEdit={onEdit} onToggle={onToggle} onDelete={onDelete} />
+        )}
+
+        {/* SEMANA */}
+        {view === "semana" && (
+          <TimeGrid days={week} events={events}
+            onNewSlot={(date, time) => onNewEvent(date, time)}
+            onEdit={onEdit} onToggle={onToggle} onDelete={onDelete} />
+        )}
 
         {/* MES */}
         {view === "mes" && (
@@ -197,32 +235,6 @@ export function CalendarPro({ events, onToggle, onDelete, onNewEvent, onEdit, on
             {selectedDate && (
               <DayPanel date={selectedDate} events={selectedEvents} onToggle={onToggle} onDelete={onDelete} onEdit={onEdit} onNewEvent={onNewEvent} />
             )}
-          </div>
-        )}
-
-        {/* SEMANA */}
-        {view === "semana" && (
-          <div className="grid grid-cols-7 divide-x divide-border/20">
-            {week.map((ds) => {
-              const dayEvents = byDate.get(ds) || [];
-              const isToday = ds === today;
-              const d = new Date(ds);
-              return (
-                <DroppableDay key={ds} date={ds} className="min-h-[20rem] flex flex-col">
-                  <div className={cn("px-2 py-2 border-b border-border/20 text-center", isToday && "bg-primary/[0.06]")}>
-                    <p className="text-[10px] text-muted-foreground">{DAY_NAMES[(d.getDay() + 6) % 7]}</p>
-                    <p className={cn("text-sm font-semibold", isToday && "text-primary")}>{d.getDate()}</p>
-                  </div>
-                  <div className="flex-1 p-1.5 flex flex-col gap-1 overflow-y-auto">
-                    {dayEvents.map((e) => <EventChip key={e.id} e={e} />)}
-                    <button onClick={() => onNewEvent(ds)}
-                      className="mt-auto opacity-0 hover:opacity-100 focus:opacity-100 text-[10px] text-muted-foreground hover:text-primary flex items-center justify-center gap-1 py-1 transition-opacity">
-                      <Plus className="h-3 w-3" /> Agregar
-                    </button>
-                  </div>
-                </DroppableDay>
-              );
-            })}
           </div>
         )}
 

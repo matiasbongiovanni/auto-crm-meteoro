@@ -256,6 +256,7 @@ export type CalendarEvent = {
   title: string;
   date: string;
   time?: string;
+  end_time?: string;
   company?: string;
   type: CalendarEventType;
   completed: boolean;

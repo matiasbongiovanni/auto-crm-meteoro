@@ -214,5 +214,14 @@ FASE CARGA CON IA (claude -p) ✓ (2026-06-18):
 - **⚠️ Requiere self-hosted**: el CLI no existe en Vercel serverless. Flags en `.env.example` (`ENABLE_CLAUDE_CLI`, `CLAUDE_CLI_PATH`). Sin migraciones SQL.
 - Plan: `planes/2026-06-18-crm-claude-cli-inputs-ia.md`.
 
+FASE CALENDARIO GRILLA HORARIA ✓ (2026-06-19):
+- **Agenda estilo Google Calendar/Calendly** en `/tareas`: `CalendarPro.tsx` ahora con 4 vistas — **Día (default)** / Semana / Mes / Agenda. Día y Semana son grilla horaria **08:00–20:00**.
+- **`CalendarEvent.end_time?`** (nuevo, opcional, JSON-only — sin migración SQL; el calendario vive en `crm_state.exp2_calendar`). Eventos ahora ocupan un **bloque** por hora inicio/fin.
+- **`src/components/tareas/TimeGrid.tsx`** — grilla reusable (día/semana): bloques posicionados absolutos, solapados repartidos en sub-columnas (`overlapColumns`), fila "todo el día" para eventos sin hora, línea de "ahora", click en franja vacía → alta con fecha+hora prellenadas.
+- **`src/lib/calendar-time.ts`** — helpers puros: `GRID_START_HOUR=8`/`GRID_END_HOUR=20`, `eventLayout`, `overlapColumns`, `offsetToTime`, `defaultEndTime` (+60min), `nowOffsetPx`.
+- **Form** (`tareas/page.tsx`): inputs Hora inicio + Hora fin; default fin = inicio+60min. Drag&drop en grilla reprograma día y hora (preserva duración); en mes solo día.
+- **Métricas/charts/heatmap intactos** (no dependen de `end_time`). `Calendar.tsx` legacy eliminado.
+- Plan: `planes/2026-06-19-crm-tareas-calendario-google.md`.
+
 FASE 3, 4 pendientes (pipeline kanban, agentes config UI)
 Pendiente (fase 2 acciones): cron para `generate-monthly-invoices` automático, digest diario, y envío automático vía whatsapp-agentkit (disparo + registro de acción por factura).
