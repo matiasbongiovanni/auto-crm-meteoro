@@ -7,6 +7,7 @@ import { BusinessMetrics } from "@/components/dashboard/BusinessMetrics";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { CashCollectWidget } from "@/components/dashboard/CashCollectWidget";
 import { AgingBreakdown } from "@/components/dashboard/AgingBreakdown";
+import { CentroAcciones } from "@/components/dashboard/CentroAcciones";
 import { monthlySubscriptionCost } from "@/lib/finance";
 import { forecastMes } from "@/lib/forecast";
 import { totalCobrado, totalPorCobrar, totalVencido, diasARenovacion } from "@/lib/clientes";
@@ -23,7 +24,7 @@ const SCOPES = [
 type Scope = "7d" | "30d" | "90d";
 
 export default function DashboardPage() {
-  const { state } = useCrm();
+  const { state, saveCalendarEvent } = useCrm();
   const [scope, setScope] = useState<Scope>(state.settings.dashboardScope || "30d");
 
   const currentMonth = new Date().toISOString().slice(0, 7);
@@ -101,6 +102,16 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Centro de acciones — qué hacer hoy */}
+      <CentroAcciones
+        clientes={state.clientes}
+        leads={state.leads}
+        invoices={state.invoices}
+        proposals={state.proposals}
+        calendarEvents={state.calendarEvents}
+        onCompleteEvent={saveCalendarEvent}
+      />
+
       {/* CEO note */}
       {state.settings.ceoNote && (
         <div className="rounded-lg bg-primary/8 border border-primary/15 px-4 py-3">
@@ -169,7 +180,7 @@ export default function DashboardPage() {
 
       {/* Cartera por antigüedad (aging) */}
       {state.invoices.length > 0 && (
-        <AgingBreakdown invoices={state.invoices} clientes={state.clientes} />
+        <AgingBreakdown invoices={state.invoices} clientes={state.clientes} leads={state.leads} />
       )}
 
       {/* Pipeline + Leads summary */}

@@ -3,14 +3,16 @@
 import { useMemo } from "react";
 import { toast } from "sonner";
 import { Bell } from "lucide-react";
-import type { Invoice, Cliente } from "@/types/crm";
+import type { Invoice, Cliente, Lead } from "@/types/crm";
 import { agingBuckets, carteraAbierta, proximaAccion } from "@/lib/cobranzas";
+import { buildWhatsAppUrl, findTelefono, msgCobro } from "@/lib/whatsapp";
 import { formatUsd } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 type Props = {
   invoices: Invoice[];
   clientes: Cliente[];
+  leads?: Lead[];
   onRecordar?: (invoice: Invoice) => void;
 };
 
@@ -21,11 +23,19 @@ const BUCKETS: { key: "corriente" | "b0_7" | "b8_30" | "b30plus"; label: string;
   { key: "b30plus", label: "31+ días", color: "text-destructive" },
 ];
 
-export function AgingBreakdown({ invoices, clientes, onRecordar }: Props) {
+export function AgingBreakdown({ invoices, clientes, leads = [], onRecordar }: Props) {
   const aging = useMemo(() => agingBuckets(invoices), [invoices]);
   const cartera = useMemo(() => carteraAbierta(invoices).slice(0, 5), [invoices]);
 
   const nombreDe = (id: string) => clientes.find((c) => c.id === id)?.nombre || "—";
+
+  function recordarDefault(invoice: Invoice, mora: number) {
+    const nombre = nombreDe(invoice.cliente_id);
+    const tel = findTelefono(nombre, { clientes, leads });
+    const url = buildWhatsAppUrl(tel, msgCobro(nombre, invoice, mora));
+    if (url) window.open(url, "_blank");
+    else toast.info(`${nombre}: sin teléfono cargado`);
+  }
 
   if (aging.total === 0) {
     return (
@@ -68,7 +78,7 @@ export function AgingBreakdown({ invoices, clientes, onRecordar }: Props) {
               <button
                 onClick={() => {
                   if (onRecordar) onRecordar(invoice);
-                  else toast.info("Recordatorio: configurá el canal de WhatsApp");
+                  else recordarDefault(invoice, mora);
                 }}
                 className="flex items-center gap-1 text-[10px] font-semibold text-muted-foreground hover:text-foreground shrink-0 px-2 py-1 rounded-md hover:bg-white/[0.04] transition-colors"
               >
