@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Hammer, Building2, Repeat } from "lucide-react";
 import type { CrmState } from "@/types/crm";
-import { mrrTotal, diasARenovacion, healthDeCliente } from "@/lib/clientes";
+import { diasARenovacion, healthDeCliente } from "@/lib/clientes";
 import { formatUsd, CLIENT_HEALTH_CONFIG } from "@/lib/constants";
 import { EmpresaLink } from "@/components/shared/EmpresaLink";
 import { cn } from "@/lib/utils";
@@ -16,7 +16,6 @@ export function BentoResumen({ state }: Props) {
 
   const clientesActivos = state.clientes.filter((c) => c.status === "activo");
   const recurrentes = clientesActivos.filter((c) => c.billing_cycle !== "unico");
-  const mrr = mrrTotal(recurrentes);
 
   const proximasRenovaciones = recurrentes
     .map((c) => ({ c, dias: diasARenovacion(c) }))
@@ -116,10 +115,6 @@ export function BentoResumen({ state }: Props) {
           <div>
             <p className="text-3xl font-bold tracking-[-0.03em] text-foreground leading-none">{recurrentes.length}</p>
             <p className="text-[11px] text-muted-foreground mt-1">clientes recurrentes</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold tracking-[-0.03em] text-foreground leading-none">{formatUsd(mrr)}</p>
-            <p className="text-[11px] text-muted-foreground mt-1">MRR de cartera</p>
           </div>
 
           {proximasRenovaciones.length > 0 && (

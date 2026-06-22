@@ -20,7 +20,10 @@ function barColor(pct: number): string {
 }
 
 export function MetasPanel({ metas, state, month, blurMontos }: Props) {
-  if (!metas || metas.length === 0) {
+  // Cash collect tiene su widget dedicado (CashCollectWidget) más abajo: se excluye acá para no duplicar.
+  const metasVisibles = (metas || []).filter((m) => m.tipo !== "cash_collect");
+
+  if (metasVisibles.length === 0) {
     return (
       <div className="metric-card p-5 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
@@ -44,7 +47,7 @@ export function MetasPanel({ metas, state, month, blurMontos }: Props) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {metas.map((meta) => {
+        {metasVisibles.map((meta) => {
           const { actual, pct } = progresoMeta(meta, state, month);
           const cumplida = pct >= 100;
           const blur = blurMontos && meta.unidad === "usd";

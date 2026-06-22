@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 import { useCrm } from "@/components/crm/provider";
 import { SectionCards, type SectionCard } from "@/components/dashboard/SectionCards";
@@ -13,22 +12,11 @@ import { AgingBreakdown } from "@/components/dashboard/AgingBreakdown";
 import { CentroAcciones } from "@/components/dashboard/CentroAcciones";
 import { monthlySubscriptionCost, filterByMonth } from "@/lib/finance";
 import { forecastMes } from "@/lib/forecast";
-import { totalCobrado, totalPorCobrar, totalVencido, diasARenovacion } from "@/lib/clientes";
+import { totalCobrado, totalPorCobrar, totalVencido } from "@/lib/clientes";
 import { cn } from "@/lib/utils";
-
-const SCOPE_DAYS: Record<Scope, number> = { "7d": 7, "30d": 30, "90d": 90 };
-
-const SCOPES = [
-  { value: "7d", label: "7 días" },
-  { value: "30d", label: "30 días" },
-  { value: "90d", label: "90 días" },
-] as const;
-
-type Scope = "7d" | "30d" | "90d";
 
 export default function DashboardPage() {
   const { state, saveCalendarEvent } = useCrm();
-  const [scope, setScope] = useState<Scope>(state.settings.dashboardScope || "30d");
   const [blurred, setBlurred] = useState(state.settings.revenueHiddenByDefault ?? false);
 
   const currentMonth = new Date().toISOString().slice(0, 7);
@@ -38,21 +26,13 @@ export default function DashboardPage() {
     return d.toISOString().slice(0, 7);
   }, []);
 
+  // Meta de cash collect: fuente única = la meta tipo cash_collect (fallback al legacy monthlyGoalUsd)
+  const cashGoal = useMemo(() => {
+    const meta = state.settings.metas?.find((m) => m.tipo === "cash_collect");
+    return meta?.target ?? state.settings.monthlyGoalUsd ?? 0;
+  }, [state.settings.metas, state.settings.monthlyGoalUsd]);
+
   const metrics = useMemo(() => {
-    // Scope real: ventana de los últimos N días (7/30/90) sobre ingresos/egresos.
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - SCOPE_DAYS[scope]);
-    const cutoffStr = cutoff.toISOString().slice(0, 10);
-    const ingresosScope = state.ingresos.filter((r) => (r.fecha || "") >= cutoffStr);
-    const egresosScope = state.egresos.filter((r) => (r.fecha || "") >= cutoffStr);
-    const totalIngresos = ingresosScope.reduce((acc, r) => acc + (r.usd || 0), 0);
-    const totalEgresos = egresosScope.reduce((acc, r) => acc + (r.usd || 0), 0);
-    const netRevenue = totalIngresos - totalEgresos;
-    const mrr = monthlySubscriptionCost(state.subscriptions, currentMonth);
-    const pendingTotal = state.pendingPayments
-      .filter((p) => p.estado !== "cobrado")
-      .reduce((acc, p) => acc + (p.monto_usd || 0), 0);
-    const pipelineValue = state.pipeline.reduce((acc, c) => acc + (c.value_usd || 0), 0);
     const leadsCaliente = state.leads.filter((l) => l.temperatura === "caliente").length;
     const leadsTibio = state.leads.filter((l) => l.temperatura === "tibio").length;
 
@@ -63,12 +43,6 @@ export default function DashboardPage() {
     const forecast = forecastMes(state.pipeline, state.subscriptions, currentMonth);
 
     return {
-      netRevenue,
-      totalIngresos,
-      totalEgresos,
-      mrr,
-      pendingTotal,
-      pipelineValue,
       leadsCaliente,
       leadsTibio,
       totalLeads: state.leads.length,
@@ -77,7 +51,7 @@ export default function DashboardPage() {
       vencido,
       forecast,
     };
-  }, [state, currentMonth, scope]);
+  }, [state, currentMonth]);
 
   // KPI hero (patrón shadcn dashboard-01): mes actual vs mes anterior
   const heroCards = useMemo<SectionCard[]>(() => {
@@ -99,11 +73,15 @@ export default function DashboardPage() {
     const nuevosPrev = nuevosMes(prevMonth);
     const nuevosDelta = deltaPct(nuevosCur, nuevosPrev);
 
-    const activos = state.clientes.filter((c) => c.status === "activo").length;
-
     const mrrCur = monthlySubscriptionCost(state.subscriptions, currentMonth);
     const mrrPrev = monthlySubscriptionCost(state.subscriptions, prevMonth);
     const mrrDelta = deltaPct(mrrCur, mrrPrev);
+
+    // Pipeline: valor de oportunidades abiertas (sin cerradas)
+    const pipelineValue = state.pipeline
+      .filter((c) => c.stage !== "closed")
+      .reduce((acc, c) => acc + (c.value_usd || 0), 0);
+    const pipelineCount = state.pipeline.filter((c) => c.stage !== "closed").length;
 
     return [
       {
@@ -122,18 +100,19 @@ export default function DashboardPage() {
         footerMuted: "Nuevos clientes este mes",
       },
       {
-        label: "Cuentas activas",
-        value: String(activos),
-        deltaPct: nuevosCur > 0 ? deltaPct(activos, activos - nuevosCur) : 0,
-        footerStrong: "Cartera retenida",
-        footerMuted: "Clientes con estado activo",
-      },
-      {
         label: "MRR",
         value: usd(mrrCur),
         deltaPct: mrrDelta,
         footerStrong: mrrDelta !== null && mrrDelta < 0 ? "MRR en baja" : "MRR en crecimiento",
         footerMuted: "Ingreso recurrente mensual",
+        sensitive: true,
+      },
+      {
+        label: "Pipeline",
+        value: usd(pipelineValue),
+        deltaPct: null,
+        footerStrong: `${pipelineCount} oportunidades abiertas`,
+        footerMuted: "Valor estimado en negociación",
         sensitive: true,
       },
     ];
@@ -152,35 +131,15 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Privacidad de montos */}
-          <button
-            onClick={() => setBlurred((b) => !b)}
-            className="flex items-center gap-1.5 rounded-md border border-border/40 bg-white/[0.02] px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-            title={blurred ? "Mostrar montos" : "Ocultar montos"}
-          >
-            {blurred ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-            {blurred ? "Mostrar" : "Ocultar"}
-          </button>
-
-          {/* Scope selector */}
-          <div className="flex items-center bg-white/[0.03] rounded-lg p-0.5 border border-border/30">
-            {SCOPES.map(({ value, label }) => (
-              <button
-                key={value}
-                onClick={() => setScope(value)}
-                className={cn(
-                  "px-3 py-1.5 text-[11px] font-semibold rounded-md transition-all",
-                  scope === value
-                    ? "bg-white/[0.07] text-foreground"
-                    : "text-muted-foreground hover:text-foreground/70",
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* Privacidad de montos */}
+        <button
+          onClick={() => setBlurred((b) => !b)}
+          className="flex items-center gap-1.5 rounded-md border border-border/40 bg-white/[0.02] px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+          title={blurred ? "Mostrar montos" : "Ocultar montos"}
+        >
+          {blurred ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+          {blurred ? "Mostrar" : "Ocultar"}
+        </button>
       </div>
 
       {/* KPI hero — patrón shadcn dashboard-01 */}
@@ -217,66 +176,30 @@ export default function DashboardPage() {
       {/* Separador — detalle financiero */}
       <div className="flex items-center gap-3 pt-2">
         <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-          Detalle
+          Finanzas
         </h3>
         <div className="flex-1 h-px bg-border/40" />
-        <span className="text-[10px] text-muted-foreground">ventana {scope}</span>
       </div>
 
       {/* Revenue chart */}
       <RevenueChart ingresos={state.ingresos} egresos={state.egresos} subscriptions={state.subscriptions} />
 
-      {/* Cobros + Alertas */}
+      {/* Cobranzas: cash collect del mes + cartera por antigüedad */}
       {(state.clientes.length > 0 || state.invoices.length > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {/* Cash collect del mes */}
           <CashCollectWidget
             month={currentMonth}
             cobrado={metrics.cobrado}
             porCobrar={metrics.porCobrar}
             vencido={metrics.vencido}
             forecast={metrics.forecast}
-            meta={state.settings.monthlyGoalUsd}
-            hideGoalAmount={state.settings.hideGoalAmount}
+            meta={cashGoal}
+            hideGoalAmount={state.settings.hideGoalAmount || blurred}
           />
-
-          {/* Alertas de renovación y vencidos */}
-          <div className="metric-card p-5">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Alertas de cartera</p>
-              <Link href="/clientes" className="text-[11px] text-muted-foreground hover:text-foreground">Ver →</Link>
-            </div>
-            <div className="space-y-2">
-              {state.clientes
-                .filter((c) => { const d = diasARenovacion(c); return d !== null && d >= 0 && d <= 14; })
-                .slice(0, 2)
-                .map((c) => (
-                  <div key={c.id} className="flex items-center justify-between">
-                    <span className="text-[12px] text-muted-foreground truncate">{c.nombre}</span>
-                    <span className="text-[11px] font-semibold text-[var(--warning)] ml-2 shrink-0">Renueva en {diasARenovacion(c)}d</span>
-                  </div>
-                ))}
-              {state.invoices.filter((i) => i.status === "vencida").slice(0, 2).map((inv) => {
-                const nombre = state.clientes.find((c) => c.id === inv.cliente_id)?.nombre || "—";
-                return (
-                  <div key={inv.id} className="flex items-center justify-between">
-                    <span className="text-[12px] text-muted-foreground truncate">{nombre}</span>
-                    <span className="text-[11px] font-semibold text-destructive ml-2 shrink-0">Factura vencida</span>
-                  </div>
-                );
-              })}
-              {state.clientes.filter((c) => { const d = diasARenovacion(c); return d !== null && d >= 0 && d <= 14; }).length === 0 &&
-               state.invoices.filter((i) => i.status === "vencida").length === 0 && (
-                <p className="text-[13px] text-muted-foreground">Sin alertas</p>
-              )}
-            </div>
-          </div>
+          {state.invoices.length > 0 && (
+            <AgingBreakdown invoices={state.invoices} clientes={state.clientes} leads={state.leads} />
+          )}
         </div>
-      )}
-
-      {/* Cartera por antigüedad (aging) */}
-      {state.invoices.length > 0 && (
-        <AgingBreakdown invoices={state.invoices} clientes={state.clientes} leads={state.leads} />
       )}
 
       {/* Pipeline + Leads summary */}
