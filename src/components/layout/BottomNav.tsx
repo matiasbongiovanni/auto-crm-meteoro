@@ -7,38 +7,30 @@ import {
   LayoutDashboard,
   Users,
   DollarSign,
-  MessageSquare,
   MoreHorizontal,
-  Kanban,
-  CheckSquare,
-  FileText,
-  Bot,
-  ShieldCheck,
+  CalendarDays,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCrm } from "@/components/crm/provider";
+import {
+  NAV_ITEMS_FLAT,
+  canSee,
+  type NavItem,
+} from "@/components/layout/NavGroups";
 
-const PRIMARY = [
+const PRIMARY_HREFS = ["/dashboard", "/leads", "/calendario", "/finanzas"];
+
+const PRIMARY: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/leads", label: "Leads", icon: Users },
+  { href: "/calendario", label: "Agenda", icon: CalendarDays },
   { href: "/finanzas", label: "Finanzas", icon: DollarSign },
-  { href: "/mensajeria", label: "Mensajería", icon: MessageSquare },
 ];
 
-const SECONDARY = [
-  { href: "/pipeline", label: "Pipeline", icon: Kanban },
-  { href: "/tareas", label: "Tareas", icon: CheckSquare },
-  { href: "/documentos", label: "Documentos", icon: FileText },
-  { href: "/agentes", label: "Agentes", icon: Bot },
-  { href: "/admin", label: "Admin", icon: ShieldCheck, roleMin: "ceo" as const },
-];
-
-function roleRank(role?: string): number {
-  if (role === "ceo") return 3;
-  if (role === "admin") return 2;
-  return 1;
-}
+const SECONDARY: NavItem[] = NAV_ITEMS_FLAT.filter(
+  (item) => !PRIMARY_HREFS.includes(item.href),
+);
 
 function isActive(href: string, pathname: string) {
   if (href === "/dashboard") return pathname === "/dashboard" || pathname === "/";
@@ -51,9 +43,7 @@ export function BottomNav() {
   const role = state.profile?.role;
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const secondaryVisible = SECONDARY.filter(
-    (item) => !item.roleMin || roleRank(role) >= roleRank(item.roleMin),
-  );
+  const secondaryVisible = SECONDARY.filter((item) => canSee(item, role));
 
   const anySecondaryActive = secondaryVisible.some((item) => isActive(item.href, pathname));
 

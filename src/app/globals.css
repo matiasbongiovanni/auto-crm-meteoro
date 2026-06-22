@@ -199,4 +199,42 @@
     text-transform: uppercase;
     color: var(--muted-foreground);
   }
+
+  /* ─── Iluminación ambiental + jerarquía pro ──────────────────────────── */
+
+  /* Títulos con escala display: tracking más ajustado para look editorial */
+  .text-display {
+    letter-spacing: -0.025em;
+    font-feature-settings: "ss01", "cv01";
+  }
+
+  /* Fondo del shell con luz ambiental sutil (radiales blancos muy tenues) */
+  .ambient-bg {
+    position: relative;
+    background-color: var(--background);
+    background-image:
+      radial-gradient(60% 50% at 50% -10%, rgba(255, 255, 255, 0.035), transparent 70%),
+      radial-gradient(40% 40% at 100% 0%, rgba(255, 255, 255, 0.025), transparent 70%);
+    background-attachment: fixed;
+  }
+
+  /* Glow del item de navegación activo */
+  .nav-glow {
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+      0 0 16px -4px rgba(255, 255, 255, 0.12);
+  }
+
+  /* Card con borde superior luminoso */
+  .glow-card {
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
+      0 0 0 1px rgba(255, 255, 255, 0.04);
+  }
+}
+
+/* Barra de progreso superior (refresh de fondo) */
+@keyframes topbar {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
 }

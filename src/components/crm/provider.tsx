@@ -46,6 +46,7 @@ type ContextValue = {
   state: CrmState;
   usage: UsageOverview | null;
   loading: boolean;
+  refreshing: boolean;
   authReady: boolean;
   session: SessionState | null;
   authError: string | null;
@@ -152,7 +153,8 @@ export function CrmProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<CrmState>(EMPTY_STATE);
   const [leadJobs, setLeadJobs] = useState<LeadJob[]>([]);
   const [usage, setUsage] = useState<UsageOverview | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [authReady, setAuthReady] = useState(false);
   const [session, setSession] = useState<SessionState | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -175,9 +177,12 @@ export function CrmProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function refreshData(scope: RefreshScope = "all", currentSession = session) {
-    if (!currentSession?.access_token) { setLoading(false); return; }
+    if (!currentSession?.access_token) { setInitialLoading(false); return; }
     const url = scope !== "all" ? `/api/crm?scope=${scope}` : "/api/crm";
-    if (scope === "all") setLoading(true);
+    // Solo el primer fetch bloquea la UI; el resto es refresh silencioso (TopProgressBar).
+    const isFirst = scope === "all" && lastRefreshedAt.current === 0;
+    if (isFirst) setInitialLoading(true);
+    setRefreshing(true);
     try {
       const result = await fetchJson<Partial<CrmState> & { ok: boolean }>(url, {
         headers: { authorization: `Bearer ${currentSession.access_token}` },
@@ -194,7 +199,10 @@ export function CrmProvider({ children }: { children: React.ReactNode }) {
         await refreshUsage();
         lastRefreshedAt.current = Date.now();
       }
-    } finally { if (scope === "all") setLoading(false); }
+    } finally {
+      setRefreshing(false);
+      if (isFirst) setInitialLoading(false);
+    }
   }
 
   async function refreshLeadJobs(currentSession = session) {
@@ -239,14 +247,14 @@ export function CrmProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
-    if (!supabase) { setAuthReady(true); setLoading(false); return; }
+    if (!supabase) { setAuthReady(true); setInitialLoading(false); return; }
 
     supabase.auth.getSession().then(({ data }: { data: { session: { access_token: string; user?: { email?: string } } | null } }) => {
       const nextSession = toSessionState(data.session);
       setSession(nextSession);
       setAuthReady(true);
       if (nextSession) refreshData("all", nextSession);
-      else refreshUsage().finally(() => setLoading(false));
+      else refreshUsage().finally(() => setInitialLoading(false));
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event: unknown, next: { access_token: string; user?: { email?: string } } | null) => {
@@ -256,7 +264,7 @@ export function CrmProvider({ children }: { children: React.ReactNode }) {
       if (nextSession) {
         const isStale = Date.now() - lastRefreshedAt.current > REFRESH_COOLDOWN_MS;
         if (isStale || lastRefreshedAt.current === 0) refreshData("all", nextSession);
-      } else { setState(EMPTY_STATE); setUsage(null); setLoading(false); router.push("/login"); }
+      } else { setState(EMPTY_STATE); setUsage(null); setInitialLoading(false); router.push("/login"); }
     });
 
     return () => subscription.unsubscribe();
@@ -277,7 +285,7 @@ export function CrmProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<ContextValue>(
     () => ({
-      state, usage, loading, authReady, session, authError, setAuthError, actionFeedback,
+      state, usage, loading: initialLoading, refreshing, authReady, session, authError, setAuthError, actionFeedback,
       refreshData: (scope) => refreshData(scope ?? "all"),
       async signIn(email, password) {
         const supabase = getSupabaseBrowserClient();
@@ -401,7 +409,7 @@ export function CrmProvider({ children }: { children: React.ReactNode }) {
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [actionFeedback, authError, leadJobs, loading, session, state, usage],
+    [actionFeedback, authError, leadJobs, initialLoading, refreshing, session, state, usage],
   );
 
   return <CrmContext.Provider value={value}>{children}</CrmContext.Provider>;

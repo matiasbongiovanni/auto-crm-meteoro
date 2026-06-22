@@ -55,7 +55,8 @@ npm run mcp        # Servidor MCP (Claude Desktop/Web)
 - `(app)/pipeline/` — Kanban *(próxima fase)*
 - `(app)/clientes/` — **Cartera de clientes 360** ✓ — tabla, filtros, drawer detalle con tabs "Info" y "Portal"
 - `(app)/finanzas/` — Ingresos/egresos/suscripciones/pagos + tab Cobranzas ✓
-- `(app)/tareas/` — Calendario y tareas *(próxima fase)*
+- `(app)/calendario/` — **Sección dedicada de calendario** ✓ (vistas día/semana/mes/agenda con `CalendarPro`)
+- `(app)/tareas/` — Lista de tareas + notas por empresa ✓ (el calendario vive ahora en `/calendario`)
 - `(app)/documentos/` — Generador de documentos Meteoro ✓
 - `(app)/agentes/` — Config agentes prospector *(próxima fase)*
 - `(app)/mensajeria/` — Meteoro Chat self-hosted embebido con SSO ✓
@@ -222,6 +223,18 @@ FASE CALENDARIO GRILLA HORARIA ✓ (2026-06-19):
 - **Form** (`tareas/page.tsx`): inputs Hora inicio + Hora fin; default fin = inicio+60min. Drag&drop en grilla reprograma día y hora (preserva duración); en mes solo día.
 - **Métricas/charts/heatmap intactos** (no dependen de `end_time`). `Calendar.tsx` legacy eliminado.
 - Plan: `planes/2026-06-19-crm-tareas-calendario-google.md`.
+
+FASE UX PRO + INTERCONEXIÓN ✓ (2026-06-22):
+- **Refresh silencioso (clave)**: `provider.tsx` separa `initialLoading` (solo primer arranque, único que bloquea la UI) de `refreshing` (refreshes de fondo). `AppShell` ya no desmonta `children` en cada refresh; los refreshes muestran solo `TopProgressBar` (barra fina superior). El listener `visibilitychange` ahora refetchea en silencio (nunca spinner de página completa). Provider expone `refreshing`.
+- **Navbar agrupado**: `src/components/layout/NavGroups.ts` define grupos (Operación / Negocio / Agenda / Sistema) — fuente única para `Sidebar` y `BottomNav`. Sidebar con encabezados de sección + glow en activo (`nav-glow`). "Configuración" enlaza a `/admin`.
+- **Calendario sección propia** (`/calendario`): reutiliza `CalendarPro`. `EventForm` extraído a `src/components/tareas/EventForm.tsx` (compartido con `/tareas`). `/tareas` quedó con Lista + Notas.
+- **Interconexión estilo Obsidian**:
+  - `src/lib/relaciones.ts` — `getEmpresaResumen(empresa, state)` agrega leads/cliente/eventos/notas/invoices/pipeline/suscripciones por nombre de empresa normalizado; `listEmpresas(state)`. Sin migración SQL (match en cliente).
+  - `EmpresaLink` (`src/components/shared/EmpresaLink.tsx`) — chip clickeable usado en clientes, leads, pipeline, tareas/notas; abre el `EmpresaDrawer` 360.
+  - `EmpresaContext` + `EmpresaDrawer` montados en `AppShell` (drawer con backlinks "Aparece en…" + saltos sin recargar).
+  - **Command palette** (`CommandPalette.tsx`, Cmd/Ctrl-K): busca secciones, empresas y acciones rápidas. Botón "Buscar" en `AppHeader`.
+- **Capa visual** (`globals.css`): `.ambient-bg` (luz radial sutil del shell), `.nav-glow`, `.glow-card`, `.text-display` (jerarquía de títulos), keyframe `topbar`. Mantiene monocromo negro/blanco; sin fuente nueva (Geist).
+- Solo código, sin migraciones SQL ni credenciales nuevas. Plan: `planes/2026-06-22-crm-meteoro-navbar-calendario-no-refresh-pro.md`.
 
 FASE 3, 4 pendientes (pipeline kanban, agentes config UI)
 Pendiente (fase 2 acciones): cron para `generate-monthly-invoices` automático, digest diario, y envío automático vía whatsapp-agentkit (disparo + registro de acción por factura).

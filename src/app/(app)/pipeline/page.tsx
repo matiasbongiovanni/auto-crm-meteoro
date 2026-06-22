@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { PipelineCard, PipelineStage } from "@/types/crm";
+import { EmpresaLink } from "@/components/shared/EmpresaLink";
 
 const STAGES: { id: PipelineStage; label: string; accent: string }[] = [
   { id: "lead", label: "Lead", accent: "border-t-muted-foreground/30" },
@@ -38,7 +39,7 @@ function CardItem({ card, onEdit, onDelete }: { card: PipelineCard; onEdit: () =
         </button>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-foreground/90 truncate">{card.title}</p>
-          {card.company && <p className="text-[11px] text-muted-foreground truncate">{card.company}</p>}
+          {card.company && <EmpresaLink name={card.company} muted className="text-[11px]" />}
           {card.value_usd !== null && (
             <p className="flex items-center gap-0.5 text-[11px] text-[var(--success)] mt-1">
               <DollarSign className="h-3 w-3" /> USD {card.value_usd.toLocaleString("es-AR")}

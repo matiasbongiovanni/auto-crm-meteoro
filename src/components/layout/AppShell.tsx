@@ -7,6 +7,10 @@ import { useViewer } from "@/components/documentos/viewer-context";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { TopProgressBar } from "@/components/shared/TopProgressBar";
+import { EmpresaProvider } from "@/components/shared/EmpresaContext";
+import { EmpresaDrawer } from "@/components/shared/EmpresaDrawer";
+import { CommandPalette } from "@/components/shared/CommandPalette";
 import { Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -54,7 +58,7 @@ function GeneradorViewer({
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { session, authReady, loading } = useCrm();
+  const { session, authReady, loading, refreshing } = useCrm();
   const { viewer, closeViewer, onSaved } = useViewer();
   const router = useRouter();
 
@@ -64,9 +68,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [authReady, session, router]);
 
-  if (!authReady || (authReady && !session)) {
+  // Solo el primer arranque (auth o initial load) bloquea la UI. Los refreshes
+  // posteriores son silenciosos vía TopProgressBar — nunca desmontan children.
+  if (!authReady || (authReady && !session) || loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex min-h-screen items-center justify-center bg-background ambient-bg">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
           <p className="text-sm text-muted-foreground">Cargando...</p>
@@ -76,29 +82,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar />
-      <div className="flex flex-1 flex-col min-w-0">
-        <AppHeader />
-        <main className="flex-1 overflow-auto p-4 pb-24 md:p-6 md:pb-6">
-          {loading ? (
-            <div className="flex items-center justify-center h-48">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            children
-          )}
-        </main>
+    <EmpresaProvider>
+      <TopProgressBar active={refreshing} />
+      <div className="flex min-h-screen bg-background ambient-bg">
+        <Sidebar />
+        <div className="flex flex-1 flex-col min-w-0">
+          <AppHeader />
+          <main className="flex-1 overflow-auto p-4 pb-24 md:p-6 md:pb-6">
+            {children}
+          </main>
+        </div>
+        <BottomNav />
+        <CommandPalette />
+        <EmpresaDrawer />
+        {viewer && (
+          <GeneradorViewer
+            src={viewer.src}
+            title={viewer.title}
+            onClose={closeViewer}
+            onSaved={onSaved ?? undefined}
+          />
+        )}
       </div>
-      <BottomNav />
-      {viewer && (
-        <GeneradorViewer
-          src={viewer.src}
-          title={viewer.title}
-          onClose={closeViewer}
-          onSaved={onSaved ?? undefined}
-        />
-      )}
-    </div>
+    </EmpresaProvider>
   );
 }

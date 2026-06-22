@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { EmpresaLink } from "@/components/shared/EmpresaLink";
 import { mrrDeCliente, mrrTotal, diasARenovacion, healthDeCliente } from "@/lib/clientes";
 import { CLIENT_STATUS_CONFIG, CLIENT_HEALTH_CONFIG, BILLING_CYCLE_LABELS, formatUsd } from "@/lib/constants";
 import { ClienteDetalle } from "./ClienteDetalle";
@@ -203,7 +204,7 @@ export function ClientesPanel() {
                     >
                       <td className="px-4 py-3">
                         <p className="font-medium text-foreground/90">{c.nombre}</p>
-                        {c.empresa && <p className="text-[11px] text-muted-foreground">{c.empresa}</p>}
+                        {c.empresa && <EmpresaLink name={c.empresa} muted className="text-[11px]" />}
                       </td>
                       <td className="px-4 py-3 text-[12px] text-muted-foreground">{c.producto || "—"}</td>
                       <td className="px-4 py-3">

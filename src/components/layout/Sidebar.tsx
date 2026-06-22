@@ -3,57 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  Users,
-  Kanban,
-  DollarSign,
-  CheckSquare,
-  FileText,
-  Bot,
-  MessageSquare,
-  ShieldCheck,
-  Settings,
-  LogOut,
-  Building2,
-  Lock,
-} from "lucide-react";
+import { Settings, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCrm } from "@/components/crm/provider";
-
-const NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/leads", label: "Leads", icon: Users },
-  { href: "/pipeline", label: "Pipeline", icon: Kanban },
-  { href: "/clientes", label: "Clientes", icon: Building2 },
-  { href: "/finanzas", label: "Finanzas", icon: DollarSign },
-  { href: "/tareas", label: "Tareas", icon: CheckSquare },
-  { href: "/documentos", label: "Documentos", icon: FileText },
-  { href: "/agentes", label: "Agentes", icon: Bot },
-  { href: "/mensajeria", label: "Mensajería", icon: MessageSquare },
-  { href: "/boveda", label: "Bóveda", icon: Lock, roleMin: "ceo" as const },
-  { href: "/admin", label: "Admin", icon: ShieldCheck, roleMin: "ceo" as const },
-];
-
-type Role = "freelancer" | "admin" | "ceo";
-
-function roleRank(role?: string): number {
-  if (role === "ceo") return 3;
-  if (role === "admin") return 2;
-  if (role === "freelancer") return 1;
-  return 0;
-}
-
-function roleMinRank(roleMin?: string): number {
-  if (roleMin === "ceo") return 3;
-  if (roleMin === "admin") return 2;
-  return 0;
-}
+import { NAV_GROUPS, canSee } from "@/components/layout/NavGroups";
 
 function UserAvatar({ email, role }: { email?: string; role: string }) {
-  const initials = email
-    ? email.slice(0, 2).toUpperCase()
-    : "MT";
+  const initials = email ? email.slice(0, 2).toUpperCase() : "MT";
 
   return (
     <div className="flex items-center gap-3 px-4 py-4 border-b border-sidebar-border">
@@ -75,11 +31,7 @@ function UserAvatar({ email, role }: { email?: string; role: string }) {
 export function Sidebar() {
   const pathname = usePathname();
   const { session, state, signOut } = useCrm();
-  const role = (state.profile?.role || "freelancer") as Role;
-
-  const visibleItems = NAV_ITEMS.filter(
-    (item) => !item.roleMin || roleRank(role) >= roleMinRank(item.roleMin),
-  );
+  const role = state.profile?.role || "freelancer";
 
   function isActive(href: string) {
     if (href === "/dashboard") return pathname === "/dashboard" || pathname === "/";
@@ -105,41 +57,58 @@ export function Sidebar() {
       {/* User */}
       <UserAvatar email={session?.user?.email} role={role} />
 
-      {/* Nav */}
-      <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
-        {visibleItems.map((item) => {
-          const active = isActive(item.href);
+      {/* Nav agrupado */}
+      <nav className="flex-1 px-2 py-3 space-y-4 overflow-y-auto">
+        {NAV_GROUPS.map((group) => {
+          const items = group.items.filter((item) => canSee(item, role));
+          if (items.length === 0) return null;
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "group flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] font-medium transition-all duration-100",
-                active
-                  ? "bg-white/[0.07] text-foreground"
-                  : "text-sidebar-foreground/50 hover:bg-white/[0.04] hover:text-sidebar-foreground",
-              )}
-            >
-              <item.icon
-                className={cn(
-                  "h-3.5 w-3.5 shrink-0",
-                  active ? "text-foreground" : "text-sidebar-foreground/30 group-hover:text-sidebar-foreground/60",
-                )}
-              />
-              <span className="truncate">{item.label}</span>
-            </Link>
+            <div key={group.label} className="space-y-0.5">
+              <p className="px-3 pb-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/30">
+                {group.label}
+              </p>
+              {items.map((item) => {
+                const active = isActive(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "group relative flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] font-medium transition-all duration-100",
+                      active
+                        ? "bg-white/[0.07] text-foreground nav-glow"
+                        : "text-sidebar-foreground/50 hover:bg-white/[0.04] hover:text-sidebar-foreground",
+                    )}
+                  >
+                    {active && (
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 rounded-full bg-foreground/80 shadow-[0_0_8px_rgba(255,255,255,0.6)]" />
+                    )}
+                    <item.icon
+                      className={cn(
+                        "h-3.5 w-3.5 shrink-0",
+                        active
+                          ? "text-foreground"
+                          : "text-sidebar-foreground/30 group-hover:text-sidebar-foreground/60",
+                      )}
+                    />
+                    <span className="truncate">{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
           );
         })}
       </nav>
 
       {/* Footer: Settings + logout */}
       <div className="px-2 pb-3 border-t border-sidebar-border pt-2 space-y-0.5">
-        <button
+        <Link
+          href="/admin"
           className="w-full flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] font-medium text-sidebar-foreground/50 hover:bg-white/[0.04] hover:text-sidebar-foreground transition-all duration-100"
         >
           <Settings className="h-3.5 w-3.5 text-sidebar-foreground/30" />
           <span>Configuración</span>
-        </button>
+        </Link>
         <button
           onClick={() => signOut()}
           className="w-full flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] font-medium text-sidebar-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-all duration-100"
