@@ -113,11 +113,57 @@ export function CentroAcciones({ clientes, leads, invoices, proposals, calendarE
     });
   }, [clientes, leads, invoices, proposals, calendarEvents, onCompleteEvent]);
 
+  const urgentes = acciones.filter((a) => a.urgente);
+  const resto = acciones.filter((a) => !a.urgente);
+
+  const renderAccion = (a: Accion) => {
+    const meta = KIND_META[a.kind];
+    const Icon = meta.icon;
+    return (
+      <div
+        key={a.id}
+        className={cn(
+          "flex items-center gap-3 rounded-lg px-3 py-2 border transition-colors",
+          a.urgente ? "bg-destructive/[0.06] border-destructive/20" : "bg-white/[0.02] border-border/30",
+        )}
+      >
+        <Icon className={cn("size-4 shrink-0", meta.color)} />
+        <div className="min-w-0 flex-1">
+          <p className="text-[13px] text-foreground/90 truncate">{a.titulo}</p>
+          <p className="text-[11px] text-muted-foreground truncate">{a.detalle}</p>
+        </div>
+        {a.kind === "tarea" ? (
+          <button
+            onClick={a.onDone}
+            className="flex items-center gap-1 text-[10px] font-semibold text-muted-foreground hover:text-foreground shrink-0 px-2 py-1 rounded-md hover:bg-white/[0.04]"
+          >
+            <Check className="size-3" /> Listo
+          </button>
+        ) : (
+          <button
+            onClick={() => {
+              if (a.whatsappUrl) window.open(a.whatsappUrl, "_blank");
+              else toast.info(`${a.titulo}: sin teléfono cargado`);
+            }}
+            className={cn(
+              "flex items-center gap-1 text-[10px] font-semibold shrink-0 px-2 py-1 rounded-md transition-colors",
+              a.whatsappUrl
+                ? "text-emerald-400 hover:bg-emerald-400/10"
+                : "text-muted-foreground hover:bg-white/[0.04]",
+            )}
+          >
+            <MessageCircle className="size-3" /> WhatsApp
+          </button>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="metric-card p-5">
       <div className="flex items-center justify-between mb-4">
         <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-          Hoy · qué hacer
+          Prioridades de hoy
         </p>
         {acciones.length > 0 && (
           <span className="text-[11px] font-semibold text-foreground/70">{acciones.length}</span>
@@ -127,49 +173,21 @@ export function CentroAcciones({ clientes, leads, invoices, proposals, calendarE
       {acciones.length === 0 ? (
         <p className="text-[13px] text-muted-foreground">Todo al día ✓</p>
       ) : (
-        <div className="space-y-1.5">
-          {acciones.map((a) => {
-            const meta = KIND_META[a.kind];
-            const Icon = meta.icon;
-            return (
-              <div
-                key={a.id}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 border transition-colors",
-                  a.urgente ? "bg-destructive/[0.06] border-destructive/20" : "bg-white/[0.02] border-border/30",
-                )}
-              >
-                <Icon className={cn("size-4 shrink-0", meta.color)} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] text-foreground/90 truncate">{a.titulo}</p>
-                  <p className="text-[11px] text-muted-foreground truncate">{a.detalle}</p>
-                </div>
-                {a.kind === "tarea" ? (
-                  <button
-                    onClick={a.onDone}
-                    className="flex items-center gap-1 text-[10px] font-semibold text-muted-foreground hover:text-foreground shrink-0 px-2 py-1 rounded-md hover:bg-white/[0.04]"
-                  >
-                    <Check className="size-3" /> Listo
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => {
-                      if (a.whatsappUrl) window.open(a.whatsappUrl, "_blank");
-                      else toast.info(`${a.titulo}: sin teléfono cargado`);
-                    }}
-                    className={cn(
-                      "flex items-center gap-1 text-[10px] font-semibold shrink-0 px-2 py-1 rounded-md transition-colors",
-                      a.whatsappUrl
-                        ? "text-emerald-400 hover:bg-emerald-400/10"
-                        : "text-muted-foreground hover:bg-white/[0.04]",
-                    )}
-                  >
-                    <MessageCircle className="size-3" /> WhatsApp
-                  </button>
-                )}
-              </div>
-            );
-          })}
+        <div className="space-y-3">
+          {urgentes.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[9px] font-semibold uppercase tracking-[0.1em] text-destructive/80">Urgente</p>
+              {urgentes.map(renderAccion)}
+            </div>
+          )}
+          {resto.length > 0 && (
+            <div className="space-y-1.5">
+              {urgentes.length > 0 && (
+                <p className="text-[9px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Hoy</p>
+              )}
+              {resto.map(renderAccion)}
+            </div>
+          )}
         </div>
       )}
     </div>

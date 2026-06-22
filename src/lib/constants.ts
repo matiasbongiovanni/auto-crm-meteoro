@@ -1,4 +1,5 @@
 import type { Temperature, LeadSource, ActivityType } from "@/types";
+import type { Meta } from "@/types/crm";
 
 // ─── CRM Workspace ────────────────────────────────────────────────────────────
 export const DEFAULT_WORKSPACE_ID = process.env.CRM_WORKSPACE_ID || "workspace:meteoro";
@@ -23,6 +24,7 @@ export const DEFAULT_SETTINGS = {
   monthlyGoalUsd: 0,
   hideGoalAmount: false,
   revenueHiddenByDefault: false,
+  metas: [] as Meta[],
 } as const;
 
 // ─── Lead / Contact ────────────────────────────────────────────────────────────

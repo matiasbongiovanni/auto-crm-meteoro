@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   AreaChart,
   Area,
@@ -10,14 +10,29 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
+import {
+  Card,
+  CardAction,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from "@/components/ui/card";
 import { last24Months, filterByMonth, monthlySubscriptionCost } from "@/lib/finance";
 import type { FinanceRow, Subscription } from "@/types/crm";
+import { cn } from "@/lib/utils";
 
 type Props = {
   ingresos: FinanceRow[];
   egresos: FinanceRow[];
   subscriptions: Subscription[];
 };
+
+const RANGES = [
+  { value: 12, label: "12 meses" },
+  { value: 6, label: "6 meses" },
+  { value: 3, label: "3 meses" },
+] as const;
 
 function CustomTooltip({ active, payload, label }: {
   active?: boolean;
@@ -40,9 +55,11 @@ function CustomTooltip({ active, payload, label }: {
 }
 
 export function RevenueChart({ ingresos, egresos, subscriptions }: Props) {
+  const [range, setRange] = useState<number>(12);
+
   const data = useMemo(() => {
     return last24Months()
-      .slice(0, 8)
+      .slice(0, range)
       .reverse()
       .map((month) => {
         const ing = filterByMonth(ingresos, month).reduce((acc, r) => acc + (r.usd || 0), 0);
@@ -55,86 +72,71 @@ export function RevenueChart({ ingresos, egresos, subscriptions }: Props) {
         });
         return { month: label, Ingresos: ing, Egresos: egr, MRR: mrr };
       });
-  }, [ingresos, egresos, subscriptions]);
+  }, [ingresos, egresos, subscriptions, range]);
 
   return (
-    <div className="metric-card p-5">
-      <div className="flex items-center justify-between mb-5">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-          Revenue · últimos 8 meses
-        </p>
-        <div className="flex items-center gap-4">
-          {[
-            { label: "Ingresos", color: "var(--foreground)" },
-            { label: "MRR", color: "var(--success)" },
-            { label: "Egresos", color: "var(--chart-3)" },
-          ].map(({ label, color }) => (
-            <div key={label} className="flex items-center gap-1.5">
-              <span className="w-2 h-0.5 rounded-full" style={{ background: color }} />
-              <span className="text-[10px] text-muted-foreground">{label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-      <ResponsiveContainer width="100%" height={180}>
-        <AreaChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-          <defs>
-            <linearGradient id="gradIngresos" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="var(--foreground)" stopOpacity={0.12} />
-              <stop offset="95%" stopColor="var(--foreground)" stopOpacity={0} />
-            </linearGradient>
-            <linearGradient id="gradMRR" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="var(--success)" stopOpacity={0.15} />
-              <stop offset="95%" stopColor="var(--success)" stopOpacity={0} />
-            </linearGradient>
-            <linearGradient id="gradEgresos" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="var(--chart-3)" stopOpacity={0.1} />
-              <stop offset="95%" stopColor="var(--chart-3)" stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
-          <XAxis
-            dataKey="month"
-            tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
-            axisLine={false}
-            tickLine={false}
-          />
-          <YAxis
-            tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
-            axisLine={false}
-            tickLine={false}
-            tickFormatter={(v) => `$${v}`}
-          />
-          <Tooltip content={<CustomTooltip />} cursor={{ stroke: "rgba(255,255,255,0.06)", strokeWidth: 1 }} />
-          <Area
-            type="monotone"
-            dataKey="Ingresos"
-            stroke="var(--foreground)"
-            strokeWidth={1.5}
-            fill="url(#gradIngresos)"
-            dot={false}
-            activeDot={{ r: 3, fill: "var(--foreground)", strokeWidth: 0 }}
-          />
-          <Area
-            type="monotone"
-            dataKey="MRR"
-            stroke="var(--success)"
-            strokeWidth={1.5}
-            fill="url(#gradMRR)"
-            dot={false}
-            activeDot={{ r: 3, fill: "var(--success)", strokeWidth: 0 }}
-          />
-          <Area
-            type="monotone"
-            dataKey="Egresos"
-            stroke="var(--chart-3)"
-            strokeWidth={1.5}
-            fill="url(#gradEgresos)"
-            dot={false}
-            activeDot={{ r: 3, fill: "var(--chart-3)", strokeWidth: 0 }}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
+    <Card>
+      <CardHeader className="border-b [.border-b]:pb-4">
+        <CardDescription>Total de los últimos {range} meses</CardDescription>
+        <CardTitle className="text-base">Ingresos & MRR</CardTitle>
+        <CardAction>
+          <div className="inline-flex items-center rounded-lg border border-border/50 bg-white/[0.02] p-0.5">
+            {RANGES.map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => setRange(value)}
+                className={cn(
+                  "rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
+                  range === value
+                    ? "bg-white/[0.08] text-foreground"
+                    : "text-muted-foreground hover:text-foreground/70",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </CardAction>
+      </CardHeader>
+      <CardContent>
+        <ResponsiveContainer width="100%" height={240}>
+          <AreaChart data={data} margin={{ top: 8, right: 4, left: -18, bottom: 0 }}>
+            <defs>
+              <linearGradient id="gradIngresos" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="var(--foreground)" stopOpacity={0.22} />
+                <stop offset="95%" stopColor="var(--foreground)" stopOpacity={0.02} />
+              </linearGradient>
+              <linearGradient id="gradMRR" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="var(--success)" stopOpacity={0.18} />
+                <stop offset="95%" stopColor="var(--success)" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="gradEgresos" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="var(--chart-3)" stopOpacity={0.12} />
+                <stop offset="95%" stopColor="var(--chart-3)" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+            <XAxis
+              dataKey="month"
+              tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+              tickMargin={8}
+            />
+            <YAxis
+              tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+              tickFormatter={(v) => `$${v}`}
+              width={48}
+            />
+            <Tooltip content={<CustomTooltip />} cursor={{ stroke: "rgba(255,255,255,0.06)", strokeWidth: 1 }} />
+            <Area type="monotone" dataKey="Ingresos" stroke="var(--foreground)" strokeWidth={2} fill="url(#gradIngresos)" dot={false} activeDot={{ r: 3, fill: "var(--foreground)", strokeWidth: 0 }} />
+            <Area type="monotone" dataKey="MRR" stroke="var(--success)" strokeWidth={1.5} fill="url(#gradMRR)" dot={false} activeDot={{ r: 3, fill: "var(--success)", strokeWidth: 0 }} />
+            <Area type="monotone" dataKey="Egresos" stroke="var(--chart-3)" strokeWidth={1.5} fill="url(#gradEgresos)" dot={false} activeDot={{ r: 3, fill: "var(--chart-3)", strokeWidth: 0 }} />
+          </AreaChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
   );
 }

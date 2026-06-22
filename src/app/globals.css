@@ -57,12 +57,12 @@
   --background: #0a0a0a;
   --foreground: #f2f2f2;
 
-  /* Cards / surfaces */
-  --card: #111111;
+  /* Cards / surfaces — elevadas sobre el fondo (New York v4 dark) */
+  --card: #18181b;
   --card-foreground: #f2f2f2;
 
   /* Popover / dropdown */
-  --popover: #111111;
+  --popover: #18181b;
   --popover-foreground: #f2f2f2;
 
   /* Primary — blanco (acción) */
@@ -74,20 +74,20 @@
   --secondary-foreground: #a0a0a0;
 
   /* Muted */
-  --muted: #141414;
-  --muted-foreground: #6b6b6b;
+  --muted: #1c1c1f;
+  --muted-foreground: #8a8a8f;
 
   /* Accent */
-  --accent: #1e1e1e;
+  --accent: #232327;
   --accent-foreground: #f2f2f2;
 
   /* Destructive */
   --destructive: #ef4444;
 
   /* Borders */
-  --border: rgba(255, 255, 255, 0.06);
-  --input: rgba(255, 255, 255, 0.08);
-  --ring: #f2f2f2;
+  --border: rgba(255, 255, 255, 0.09);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: #8a8a8f;
 
   /* Charts — escala de grises */
   --chart-1: #f2f2f2;
@@ -96,11 +96,11 @@
   --chart-4: #4a4a4a;
   --chart-5: #333333;
 
-  /* Border radius */
-  --radius: 0.5rem;
+  /* Border radius — New York v4 */
+  --radius: 0.625rem;
 
   /* Sidebar — superficie más profunda */
-  --sidebar: #080808;
+  --sidebar: #09090b;
   --sidebar-foreground: #c8c8c8;
   --sidebar-primary: #f2f2f2;
   --sidebar-primary-foreground: #0a0a0a;
@@ -171,9 +171,9 @@
 
   /* Metric card */
   .metric-card {
-    background: #111111;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: calc(var(--radius) * 1.4);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) * 1.2);
   }
 
   /* Status dot */

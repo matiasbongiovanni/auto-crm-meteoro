@@ -2,13 +2,16 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { Eye, EyeOff } from "lucide-react";
 import { useCrm } from "@/components/crm/provider";
-import { BusinessMetrics } from "@/components/dashboard/BusinessMetrics";
+import { SectionCards, type SectionCard } from "@/components/dashboard/SectionCards";
+import { MetasPanel } from "@/components/dashboard/MetasPanel";
+import { BentoResumen } from "@/components/dashboard/BentoResumen";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { CashCollectWidget } from "@/components/dashboard/CashCollectWidget";
 import { AgingBreakdown } from "@/components/dashboard/AgingBreakdown";
 import { CentroAcciones } from "@/components/dashboard/CentroAcciones";
-import { monthlySubscriptionCost } from "@/lib/finance";
+import { monthlySubscriptionCost, filterByMonth } from "@/lib/finance";
 import { forecastMes } from "@/lib/forecast";
 import { totalCobrado, totalPorCobrar, totalVencido, diasARenovacion } from "@/lib/clientes";
 import { cn } from "@/lib/utils";
@@ -26,8 +29,14 @@ type Scope = "7d" | "30d" | "90d";
 export default function DashboardPage() {
   const { state, saveCalendarEvent } = useCrm();
   const [scope, setScope] = useState<Scope>(state.settings.dashboardScope || "30d");
+  const [blurred, setBlurred] = useState(state.settings.revenueHiddenByDefault ?? false);
 
   const currentMonth = new Date().toISOString().slice(0, 7);
+  const prevMonth = useMemo(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    return d.toISOString().slice(0, 7);
+  }, []);
 
   const metrics = useMemo(() => {
     // Scope real: ventana de los últimos N días (7/30/90) sobre ingresos/egresos.
@@ -70,39 +79,129 @@ export default function DashboardPage() {
     };
   }, [state, currentMonth, scope]);
 
+  // KPI hero (patrón shadcn dashboard-01): mes actual vs mes anterior
+  const heroCards = useMemo<SectionCard[]>(() => {
+    const usd = (n: number) =>
+      `USD ${n.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+    const deltaPct = (cur: number, prev: number): number | null =>
+      prev > 0 ? ((cur - prev) / prev) * 100 : cur > 0 ? 100 : null;
+
+    const netMonth = (m: string) =>
+      filterByMonth(state.ingresos, m).reduce((a, r) => a + (r.usd || 0), 0) -
+      filterByMonth(state.egresos, m).reduce((a, r) => a + (r.usd || 0), 0);
+    const netCur = netMonth(currentMonth);
+    const netPrev = netMonth(prevMonth);
+    const netDelta = deltaPct(netCur, netPrev);
+
+    const nuevosMes = (m: string) =>
+      state.clientes.filter((c) => (c.fecha_alta || "").slice(0, 7) === m).length;
+    const nuevosCur = nuevosMes(currentMonth);
+    const nuevosPrev = nuevosMes(prevMonth);
+    const nuevosDelta = deltaPct(nuevosCur, nuevosPrev);
+
+    const activos = state.clientes.filter((c) => c.status === "activo").length;
+
+    const mrrCur = monthlySubscriptionCost(state.subscriptions, currentMonth);
+    const mrrPrev = monthlySubscriptionCost(state.subscriptions, prevMonth);
+    const mrrDelta = deltaPct(mrrCur, mrrPrev);
+
+    return [
+      {
+        label: "Ingresos del mes",
+        value: usd(netCur),
+        deltaPct: netDelta,
+        footerStrong: netDelta !== null && netDelta < 0 ? "Bajando este mes" : "Subiendo este mes",
+        footerMuted: "Neto (ingresos − egresos) del mes",
+        sensitive: true,
+      },
+      {
+        label: "Clientes nuevos",
+        value: String(nuevosCur),
+        deltaPct: nuevosDelta,
+        footerStrong: nuevosDelta !== null && nuevosDelta < 0 ? "Menos altas que el mes pasado" : "Altas en alza",
+        footerMuted: "Nuevos clientes este mes",
+      },
+      {
+        label: "Cuentas activas",
+        value: String(activos),
+        deltaPct: nuevosCur > 0 ? deltaPct(activos, activos - nuevosCur) : 0,
+        footerStrong: "Cartera retenida",
+        footerMuted: "Clientes con estado activo",
+      },
+      {
+        label: "MRR",
+        value: usd(mrrCur),
+        deltaPct: mrrDelta,
+        footerStrong: mrrDelta !== null && mrrDelta < 0 ? "MRR en baja" : "MRR en crecimiento",
+        footerMuted: "Ingreso recurrente mensual",
+        sensitive: true,
+      },
+    ];
+  }, [state, currentMonth, prevMonth]);
+
   return (
     <div className="space-y-5">
       {/* Header row */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-[18px] font-bold text-foreground tracking-[-0.03em]">
-            Overview
+            Inicio
           </h2>
           <p className="text-[11px] text-muted-foreground mt-0.5">
             {new Date().toLocaleDateString("es-AR", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
           </p>
         </div>
 
-        {/* Scope selector */}
-        <div className="flex items-center bg-white/[0.03] rounded-lg p-0.5 border border-border/30">
-          {SCOPES.map(({ value, label }) => (
-            <button
-              key={value}
-              onClick={() => setScope(value)}
-              className={cn(
-                "px-3 py-1.5 text-[11px] font-semibold rounded-md transition-all",
-                scope === value
-                  ? "bg-white/[0.07] text-foreground"
-                  : "text-muted-foreground hover:text-foreground/70",
-              )}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          {/* Privacidad de montos */}
+          <button
+            onClick={() => setBlurred((b) => !b)}
+            className="flex items-center gap-1.5 rounded-md border border-border/40 bg-white/[0.02] px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+            title={blurred ? "Mostrar montos" : "Ocultar montos"}
+          >
+            {blurred ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+            {blurred ? "Mostrar" : "Ocultar"}
+          </button>
+
+          {/* Scope selector */}
+          <div className="flex items-center bg-white/[0.03] rounded-lg p-0.5 border border-border/30">
+            {SCOPES.map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => setScope(value)}
+                className={cn(
+                  "px-3 py-1.5 text-[11px] font-semibold rounded-md transition-all",
+                  scope === value
+                    ? "bg-white/[0.07] text-foreground"
+                    : "text-muted-foreground hover:text-foreground/70",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Centro de acciones — qué hacer hoy */}
+      {/* KPI hero — patrón shadcn dashboard-01 */}
+      <SectionCards cards={heroCards} blurred={blurred} />
+
+      {/* CEO note — foco del mes */}
+      {state.settings.ceoNote && (
+        <div className="rounded-lg bg-primary/8 border border-primary/15 px-4 py-3">
+          <p className="text-sm text-primary">{state.settings.ceoNote}</p>
+        </div>
+      )}
+
+      {/* Metas del mes */}
+      <MetasPanel
+        metas={state.settings.metas}
+        state={state}
+        month={currentMonth}
+        blurMontos={state.settings.revenueHiddenByDefault}
+      />
+
+      {/* Prioridades de hoy */}
       <CentroAcciones
         clientes={state.clientes}
         leads={state.leads}
@@ -112,20 +211,17 @@ export default function DashboardPage() {
         onCompleteEvent={saveCalendarEvent}
       />
 
-      {/* CEO note */}
-      {state.settings.ceoNote && (
-        <div className="rounded-lg bg-primary/8 border border-primary/15 px-4 py-3">
-          <p className="text-sm text-primary">{state.settings.ceoNote}</p>
-        </div>
-      )}
+      {/* Bento: Desarrollos · Clientes · Mensualidades activas */}
+      <BentoResumen state={state} />
 
-      {/* Metrics grid */}
-      <BusinessMetrics
-        metrics={metrics}
-        monthlyGoal={state.settings.monthlyGoalUsd}
-        defaultHidden={state.settings.revenueHiddenByDefault}
-        hideGoalAmount={state.settings.hideGoalAmount}
-      />
+      {/* Separador — detalle financiero */}
+      <div className="flex items-center gap-3 pt-2">
+        <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          Detalle
+        </h3>
+        <div className="flex-1 h-px bg-border/40" />
+        <span className="text-[10px] text-muted-foreground">ventana {scope}</span>
+      </div>
 
       {/* Revenue chart */}
       <RevenueChart ingresos={state.ingresos} egresos={state.egresos} subscriptions={state.subscriptions} />

@@ -4,7 +4,8 @@ import { getSupabaseServerClient } from "@/lib/server-supabase";
 import { getPublicSupabaseEnv } from "@/lib/supabase-env";
 import { generateApiKey } from "@/lib/api-auth";
 import { deleteProposalRecord, listProposals, saveProposalRecord } from "@/lib/proposals-store";
-import type { Agent, ApiKey, CalendarEvent, Cliente, CompanyNote, Invoice, OnboardingDoc, PendingPayment, PipelineCard, Profile, Proposal, Settings, Subscription } from "@/types/crm";
+import type { Agent, ApiKey, CalendarEvent, Cliente, CompanyNote, Invoice, Meta, MetaTipo, MetaUnidad, OnboardingDoc, PendingPayment, PipelineCard, Profile, Proposal, Settings, Subscription } from "@/types/crm";
+import { DEFAULT_METAS } from "@/lib/metas";
 
 function json(body: unknown, status = 200) {
   return NextResponse.json(body, { status });
@@ -81,18 +82,56 @@ async function loadWorkspaceState(admin: ReturnType<typeof getSupabaseServerClie
   return new Map((data || []).map((row) => [row.state_key, row.payload]));
 }
 
+const VALID_META_TIPOS = new Set<MetaTipo>(["cash_collect", "ventas_servicio", "ventas_producto", "custom"]);
+const VALID_META_UNIDADES = new Set<MetaUnidad>(["usd", "cantidad"]);
+
+function normalizeMetas(value: unknown, monthlyGoalUsd: number): Meta[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    // Seed: migrar la meta única legacy a cash collect si existe, + las metas sugeridas.
+    if (monthlyGoalUsd > 0) {
+      return DEFAULT_METAS.map((m) =>
+        m.tipo === "cash_collect" ? { ...m, target: monthlyGoalUsd } : m,
+      );
+    }
+    return DEFAULT_METAS;
+  }
+
+  const metas: Meta[] = [];
+  for (const raw of value) {
+    if (typeof raw !== "object" || !raw) continue;
+    const m = raw as Partial<Meta>;
+    const tipo: MetaTipo = VALID_META_TIPOS.has(m.tipo as MetaTipo) ? (m.tipo as MetaTipo) : "custom";
+    const unidad: MetaUnidad = VALID_META_UNIDADES.has(m.unidad as MetaUnidad) ? (m.unidad as MetaUnidad) : "cantidad";
+    const target = Number(m.target);
+    const manual = Number(m.manual);
+    metas.push({
+      id: typeof m.id === "string" && m.id ? m.id : crypto.randomUUID(),
+      label: typeof m.label === "string" ? m.label : "Meta",
+      tipo,
+      unidad,
+      target: Number.isFinite(target) && target >= 0 ? target : 0,
+      ...(typeof m.productoMatch === "string" ? { productoMatch: m.productoMatch } : {}),
+      ...(Number.isFinite(manual) && manual >= 0 ? { manual } : {}),
+      ...(typeof m.subtitulo === "string" ? { subtitulo: m.subtitulo } : {}),
+    });
+  }
+  return metas;
+}
+
 function normalizeSettings(value: unknown): Settings {
   const settings = typeof value === "object" && value ? (value as Partial<Settings>) : {};
   const monthlyGoalUsd = Number(settings.monthlyGoalUsd);
+  const goal = Number.isFinite(monthlyGoalUsd) && monthlyGoalUsd >= 0
+    ? monthlyGoalUsd
+    : DEFAULT_SETTINGS.monthlyGoalUsd;
   return {
     defaultUsdType: settings.defaultUsdType || DEFAULT_SETTINGS.defaultUsdType,
     dashboardScope: settings.dashboardScope || DEFAULT_SETTINGS.dashboardScope,
     ceoNote: settings.ceoNote || DEFAULT_SETTINGS.ceoNote,
-    monthlyGoalUsd: Number.isFinite(monthlyGoalUsd) && monthlyGoalUsd >= 0
-      ? monthlyGoalUsd
-      : DEFAULT_SETTINGS.monthlyGoalUsd,
+    monthlyGoalUsd: goal,
     hideGoalAmount: settings.hideGoalAmount === true,
     revenueHiddenByDefault: settings.revenueHiddenByDefault === true,
+    metas: normalizeMetas(settings.metas, goal),
   };
 }
 

@@ -151,6 +151,20 @@ export type Agent = {
   capabilities?: string[];
 };
 
+export type MetaTipo = "cash_collect" | "ventas_servicio" | "ventas_producto" | "custom";
+export type MetaUnidad = "usd" | "cantidad";
+
+export type Meta = {
+  id: string;
+  label: string;
+  tipo: MetaTipo;
+  target: number;
+  unidad: MetaUnidad;
+  productoMatch?: string;
+  manual?: number;
+  subtitulo?: string;
+};
+
 export type Settings = {
   defaultUsdType: string;
   dashboardScope: "7d" | "30d" | "90d";
@@ -158,6 +172,7 @@ export type Settings = {
   monthlyGoalUsd: number;
   hideGoalAmount: boolean;
   revenueHiddenByDefault: boolean;
+  metas: Meta[];
 };
 
 export type UsageSnapshot = {

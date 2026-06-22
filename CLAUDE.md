@@ -236,5 +236,13 @@ FASE UX PRO + INTERCONEXIÓN ✓ (2026-06-22):
 - **Capa visual** (`globals.css`): `.ambient-bg` (luz radial sutil del shell), `.nav-glow`, `.glow-card`, `.text-display` (jerarquía de títulos), keyframe `topbar`. Mantiene monocromo negro/blanco; sin fuente nueva (Geist).
 - Solo código, sin migraciones SQL ni credenciales nuevas. Plan: `planes/2026-06-22-crm-meteoro-navbar-calendario-no-refresh-pro.md`.
 
+FASE INICIO 2.0 ✓ (2026-06-22):
+- **Metas múltiples** (reemplaza la meta única `monthlyGoalUsd`): `Settings.metas: Meta[]` (JSON en `crm_state`, sin SQL). 4 tipos con progreso **auto-calculado** (`src/lib/metas.ts` → `progresoMeta`): `cash_collect` (USD cobrado del mes), `ventas_servicio` (clientes nuevos del mes por `fecha_alta`), `ventas_producto` (ídem filtrado por substring en `producto`), `custom` (manual). Seeds en `DEFAULT_METAS` (Cash collect 2k / Ventas servicios +5 / Anti-baneo Meta +5). `normalizeSettings` migra `monthlyGoalUsd` legacy a una meta cash collect; el campo se conserva (lo usa `CashCollectWidget`).
+- **`MetasPanel.tsx`** — hero del inicio: card por meta con barra de progreso y color por avance (`<50` warning / `<100` primary / `100` success).
+- **`BentoResumen.tsx`** — bento grid: Desarrollos activos (pipeline `in_progress`), Clientes activos (status `activo` + health dot), Mensualidades activas (clientes recurrentes `billing_cycle≠unico` + MRR de cartera + próximas renovaciones). Nombres clickeables vía `EmpresaLink`.
+- **`CentroAcciones`** → reencabezado "Prioridades de hoy" agrupado Urgente/Hoy (misma lógica 1-click).
+- **Reorden de `dashboard/page.tsx`**: Nota CEO → Metas → Prioridades → Bento → separador "Detalle" → BusinessMetrics (sin barra de meta, vive ahora en MetasPanel) → Revenue → Cobros/Alertas → Aging → Leads/Pagos. El scope 7d/30d/90d afecta solo "Detalle".
+- **Admin → `SettingsForm`**: editor CRUD de metas (tipo/target/unidad/filtro producto/manual/subtítulo) + "Restaurar sugeridas". Sin migraciones SQL. Plan: `planes/2026-06-22-crm-dashboard-inicio-metas-bento.md`.
+
 FASE 3, 4 pendientes (pipeline kanban, agentes config UI)
 Pendiente (fase 2 acciones): cron para `generate-monthly-invoices` automático, digest diario, y envío automático vía whatsapp-agentkit (disparo + registro de acción por factura).
