@@ -5,6 +5,7 @@ import { Target } from "lucide-react";
 import type { CrmState, Meta } from "@/types/crm";
 import { progresoMeta, formatMetaValor } from "@/lib/metas";
 import { cn } from "@/lib/utils";
+import { DolarWidget } from "@/components/dashboard/DolarWidget";
 
 type Props = {
   metas: Meta[];
@@ -25,14 +26,19 @@ export function MetasPanel({ metas, state, month, blurMontos }: Props) {
 
   if (metasVisibles.length === 0) {
     return (
-      <div className="metric-card p-5 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <Target className="size-4 text-muted-foreground" />
-          <p className="text-[13px] text-muted-foreground">Sin metas configuradas para el mes</p>
+      <div className="space-y-3">
+        <div className="metric-card p-5 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <Target className="size-4 text-muted-foreground" />
+            <p className="text-[13px] text-muted-foreground">Sin metas configuradas para el mes</p>
+          </div>
+          <Link href="/admin" className="text-[11px] font-semibold text-foreground/70 hover:text-foreground">
+            Configurar metas →
+          </Link>
         </div>
-        <Link href="/admin" className="text-[11px] font-semibold text-foreground/70 hover:text-foreground">
-          Configurar metas →
-        </Link>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <DolarWidget />
+        </div>
       </div>
     );
   }
@@ -87,6 +93,7 @@ export function MetasPanel({ metas, state, month, blurMontos }: Props) {
             </div>
           );
         })}
+        <DolarWidget />
       </div>
     </div>
   );

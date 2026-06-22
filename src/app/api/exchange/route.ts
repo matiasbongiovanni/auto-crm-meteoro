@@ -10,14 +10,18 @@ const TYPE_MAP: Record<string, string> = {
   crypto: "cripto",
 };
 
+const DOLARAPI_URL: Record<string, string> = {
+  eur: "https://dolarapi.com/v1/cotizaciones/eur",
+};
+
 export async function GET(request: NextRequest) {
   const type = request.nextUrl.searchParams.get("type") || "blue";
-  const apiType = TYPE_MAP[type] || "blue";
+  const url = DOLARAPI_URL[type] || `https://dolarapi.com/v1/dolares/${TYPE_MAP[type] || "blue"}`;
 
   try {
-    const res = await fetch(`https://dolarapi.com/v1/dolares/${apiType}`, {
+    const res = await fetch(url, {
       headers: { "User-Agent": "crm-meteoro/2.0" },
-      next: { revalidate: 300 },
+      next: { revalidate: 60 },
     });
     if (!res.ok) throw new Error(`dolarapi responded ${res.status}`);
     const data = (await res.json()) as { compra: number; venta: number; nombre: string };
