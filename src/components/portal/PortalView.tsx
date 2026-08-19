@@ -5,7 +5,15 @@ import { PortalTimeline } from "./PortalTimeline";
 import { PortalMetricas } from "./PortalMetricas";
 import type { PortalProject, PortalTask, PortalUser, EcommerceMetricas } from "@/types/portal";
 
-const BOLT = "M18 4L9 17H15.5L10 28L23 15H16L21 4Z";
+function SectionLabel({ children, count }: { children: React.ReactNode; count?: number }) {
+  return (
+    <div className="flex items-center gap-2 mb-6">
+      <span className="w-1 h-3 rounded-full bg-white/25" />
+      <h2 className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">{children}</h2>
+      {count != null && <span className="ml-auto text-[10px] text-white/20 tabular-nums">{count}</span>}
+    </div>
+  );
+}
 
 function formatShort(fecha: string) {
   return new Date(fecha + "T00:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" });
@@ -31,53 +39,44 @@ export function PortalView({ project, portalUser, metricas }: Props) {
   const dias = project.fecha_estimada ? diasRestantes(project.fecha_estimada) : null;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
+    <div className="relative min-h-screen bg-[#08080a] text-white overflow-hidden">
+
+      {/* Iluminación ambiental */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed -top-52 left-1/2 -translate-x-1/2 w-[900px] h-[900px] rounded-full opacity-[0.10] blur-[140px] z-0"
+        style={{ background: "radial-gradient(circle, #ffffff 0%, transparent 70%)" }}
+      />
 
       {/* Barra de progreso top */}
-      <div className="h-px w-full bg-white/5">
-        <div className="h-full bg-white transition-all duration-1000" style={{ width: `${porcentaje}%` }} />
+      <div className="relative z-10 h-px w-full bg-white/5">
+        <div className="h-full bg-white shadow-[0_0_12px_rgba(255,255,255,0.5)] transition-all duration-1000" style={{ width: `${porcentaje}%` }} />
       </div>
 
       {/* Header */}
-      <header className="border-b border-white/[0.06] px-6 py-4">
+      <header className="relative z-10 border-b border-white/[0.06] px-6 py-6">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
+          <Image
+            src="/brand/meteoro-logo-nuevo.png"
+            alt="meteoro."
+            width={281}
+            height={89}
+            className="h-8 w-auto object-contain drop-shadow-[0_2px_16px_rgba(255,255,255,0.14)]"
+            priority
+          />
           <div className="flex items-center gap-3">
-            <Image
-              src="/brand/meteoro-isotipo.svg"
-              alt=""
-              width={28}
-              height={28}
-              className="opacity-90"
-            />
-            <div className="h-4 w-px bg-white/10" />
-            <Image
-              src="/brand/meteoro-negativo.png"
-              alt="meteoro."
-              width={80}
-              height={20}
-              className="h-[18px] w-auto object-contain"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-white/40">{portalUser.nombre}</span>
-            <div className="w-7 h-7 rounded-full bg-white/10 border border-white/15 flex items-center justify-center text-[11px] font-bold text-white/70 uppercase">
+            <span className="text-sm text-white/45">{portalUser.nombre}</span>
+            <div className="w-9 h-9 rounded-full bg-white/10 border border-white/15 flex items-center justify-center text-[13px] font-bold text-white/70 uppercase shadow-[0_4px_16px_-4px_rgba(0,0,0,0.6)]">
               {portalUser.nombre.charAt(0)}
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-12 space-y-8">
+      <main className="relative z-10 max-w-5xl mx-auto px-6 py-12 space-y-8">
 
         {/* Hero */}
-        <div className="relative overflow-hidden rounded-2xl bg-white/[0.02] border border-white/8 p-8">
-          {/* Bolt watermark */}
-          <svg viewBox="0 0 32 32" fill="none" aria-hidden
-            className="absolute right-0 top-0 opacity-[0.03] pointer-events-none"
-            style={{ width: 320, height: 320, transform: "translate(20%, -10%)" }}>
-            <path d={BOLT} fill="white" />
-          </svg>
-
+        <div className="relative overflow-hidden rounded-2xl bg-white/[0.02] border border-white/8 p-8 shadow-[0_1px_0_rgba(255,255,255,0.05)_inset,0_24px_60px_-24px_rgba(0,0,0,0.7)]">
           <div className="relative space-y-5">
             {/* Encabezado del proyecto */}
             <div>
@@ -133,19 +132,12 @@ export function PortalView({ project, portalUser, metricas }: Props) {
 
         {/* Progreso + Tareas */}
         <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-6">
-          <div className="rounded-2xl bg-white/[0.02] border border-white/8 p-7 flex flex-col items-center justify-center">
+          <div className="rounded-2xl bg-white/[0.02] border border-white/8 p-7 flex flex-col items-center justify-center shadow-[0_1px_0_rgba(255,255,255,0.05)_inset,0_20px_50px_-24px_rgba(0,0,0,0.65)]">
             <PortalProgress porcentaje={porcentaje} completadas={completadas} total={tasks.length} />
           </div>
 
-          <div className="rounded-2xl bg-white/[0.02] border border-white/8 p-6">
-            <div className="flex items-center gap-2 mb-5">
-              <svg viewBox="0 0 32 32" fill="none" aria-hidden style={{ width: 12, height: 12, opacity: 0.35 }}>
-                <path d={BOLT} fill="white" />
-              </svg>
-              <h2 className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">
-                Tareas
-              </h2>
-            </div>
+          <div className="rounded-2xl bg-white/[0.02] border border-white/8 p-6 shadow-[0_1px_0_rgba(255,255,255,0.05)_inset,0_20px_50px_-24px_rgba(0,0,0,0.65)]">
+            <SectionLabel>Tareas</SectionLabel>
             <PortalTaskList tasks={tasks} />
           </div>
         </div>
@@ -155,16 +147,8 @@ export function PortalView({ project, portalUser, metricas }: Props) {
 
         {/* Timeline */}
         {updates.length > 0 ? (
-          <div className="rounded-2xl bg-white/[0.02] border border-white/8 p-6">
-            <div className="flex items-center gap-2 mb-6">
-              <svg viewBox="0 0 32 32" fill="none" aria-hidden style={{ width: 12, height: 12, opacity: 0.35 }}>
-                <path d={BOLT} fill="white" />
-              </svg>
-              <h2 className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">
-                Actualizaciones
-              </h2>
-              <span className="ml-auto text-[10px] text-white/20 tabular-nums">{updates.length}</span>
-            </div>
+          <div className="rounded-2xl bg-white/[0.02] border border-white/8 p-6 shadow-[0_1px_0_rgba(255,255,255,0.05)_inset,0_20px_50px_-24px_rgba(0,0,0,0.65)]">
+            <SectionLabel count={updates.length}>Actualizaciones</SectionLabel>
             <PortalTimeline updates={updates} />
           </div>
         ) : (
@@ -177,12 +161,15 @@ export function PortalView({ project, portalUser, metricas }: Props) {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-white/[0.04] px-6 py-8 mt-12">
+      <footer className="relative z-10 border-t border-white/[0.04] px-6 py-10 mt-12">
         <div className="max-w-5xl mx-auto flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-2.5">
-            <Image src="/brand/meteoro-isotipo.svg" alt="" width={18} height={18} className="opacity-40" />
-            <Image src="/brand/meteoro-negativo.png" alt="meteoro." width={60} height={16} className="h-3.5 w-auto opacity-30" />
-          </div>
+          <Image
+            src="/brand/meteoro-logo-nuevo.png"
+            alt="meteoro."
+            width={281}
+            height={89}
+            className="h-5 w-auto object-contain opacity-40"
+          />
           <p className="text-[10px] uppercase tracking-[0.12em] text-white/15">
             Portal privado · {new Date().getFullYear()}
           </p>

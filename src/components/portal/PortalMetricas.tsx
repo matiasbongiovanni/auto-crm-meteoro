@@ -1,6 +1,6 @@
 import type { EcommerceMetricas } from "@/types/portal";
 
-const BOLT = "M18 4L9 17H15.5L10 28L23 15H16L21 4Z";
+const CARD = "rounded-2xl bg-white/[0.02] border border-white/8 shadow-[0_1px_0_rgba(255,255,255,0.05)_inset,0_20px_50px_-24px_rgba(0,0,0,0.65)]";
 
 function formatMoney(n: number) {
   return new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 }).format(n);
@@ -46,16 +46,14 @@ export function PortalMetricas({ metricas, moneda = "ARS" }: Props) {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
-        <svg viewBox="0 0 32 32" fill="none" aria-hidden style={{ width: 12, height: 12, opacity: 0.35 }}>
-          <path d={BOLT} fill="white" />
-        </svg>
+        <span className="w-1 h-3 rounded-full bg-white/25" />
         <h2 className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">
           Métricas · Recuperación de carritos por WhatsApp
         </h2>
       </div>
 
       {/* Ventas recuperadas + conversión — panel principal */}
-      <div className="rounded-2xl bg-white/[0.02] border border-white/8 p-7 md:p-8">
+      <div className={`${CARD} p-7 md:p-8`}>
         <div className="flex flex-wrap items-baseline justify-between gap-3 mb-6">
           <p className="text-[10px] uppercase tracking-[0.18em] text-white/30 font-semibold">Ventas recuperadas por WhatsApp</p>
           <p className="text-[11px] text-white/25">{totalCarritos} carritos abandonados en el período</p>
@@ -99,7 +97,7 @@ export function PortalMetricas({ metricas, moneda = "ARS" }: Props) {
       </div>
 
       {/* Stat tiles */}
-      <div className="rounded-2xl bg-white/[0.02] border border-white/8 p-7">
+      <div className={`${CARD} p-7`}>
         <div className="flex flex-wrap gap-x-10 gap-y-5">
           <div>
             <p className="text-[9px] uppercase tracking-[0.18em] text-white/25 mb-1">Carritos abandonados</p>
@@ -129,7 +127,7 @@ export function PortalMetricas({ metricas, moneda = "ARS" }: Props) {
 
       {/* Evolución diaria */}
       {carritos.length > 0 && (
-        <div className="rounded-2xl bg-white/[0.02] border border-white/8 p-6">
+        <div className={`${CARD} p-6`}>
           <p className="text-[9px] uppercase tracking-[0.18em] text-white/25 mb-5">Evolución diaria</p>
           <div className="flex items-end gap-1.5 h-32">
             {carritos.map((c) => (
@@ -166,7 +164,7 @@ export function PortalMetricas({ metricas, moneda = "ARS" }: Props) {
 
       {/* Plantillas enviadas */}
       {mensajes.length > 0 && (
-        <div className="rounded-2xl bg-white/[0.02] border border-white/8 p-6">
+        <div className={`${CARD} p-6`}>
           <p className="text-[9px] uppercase tracking-[0.18em] text-white/25 mb-5">Mensajes de WhatsApp por plantilla</p>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
@@ -213,7 +211,7 @@ export function PortalMetricas({ metricas, moneda = "ARS" }: Props) {
 
       {/* Envíos por courier */}
       {Object.keys(enviosPorCourier).length > 0 && (
-        <div className="rounded-2xl bg-white/[0.02] border border-white/8 p-6">
+        <div className={`${CARD} p-6`}>
           <p className="text-[9px] uppercase tracking-[0.18em] text-white/25 mb-5">Envíos por courier</p>
           <div className="space-y-3">
             {Object.entries(enviosPorCourier).map(([courier, d]) => (
