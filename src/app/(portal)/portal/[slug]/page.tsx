@@ -4,7 +4,8 @@ import { getPortalSession } from "@/lib/portal-auth";
 import { getSupabaseServerClient } from "@/lib/server-supabase";
 import { createClient } from "@/lib/supabase/server";
 import { PortalView } from "@/components/portal/PortalView";
-import type { PortalTask } from "@/types/portal";
+import { getDrenovaMetricas } from "@/lib/ecommerce-metrics/drenova";
+import type { PortalTask, EcommerceMetricas, MetricasSource } from "@/types/portal";
 
 const ADMIN_EMAILS = ["matiasweschta@gmail.com"];
 
@@ -19,6 +20,11 @@ function calcPorcentaje(project: { porcentaje_manual?: number | null; tasks?: Po
   return project.porcentaje_manual != null
     ? project.porcentaje_manual
     : total > 0 ? Math.round((completadas / total) * 100) : 0;
+}
+
+async function loadMetricas(source: MetricasSource | null | undefined): Promise<EcommerceMetricas | null> {
+  if (source === "drenova_carritos") return getDrenovaMetricas(30);
+  return null;
 }
 
 export default async function PortalPage({ params }: Props) {
@@ -39,10 +45,12 @@ export default async function PortalPage({ params }: Props) {
     const tasks = (project.tasks ?? []).sort((a: PortalTask, b: PortalTask) => a.orden - b.orden);
     const updates = (project.updates ?? []).sort((a: { fecha: string }, b: { fecha: string }) => b.fecha.localeCompare(a.fecha));
     const porcentaje = calcPorcentaje(project);
+    const metricas = await loadMetricas(project.metricas_source).catch(() => null);
     return (
       <PortalView
         project={{ ...project, tasks, updates, porcentaje_calculado: porcentaje }}
         portalUser={{ id: adminUser.id, project_id: project.id, email: adminUser.email, nombre: "Admin (vista previa)", supabase_user_id: adminUser.id }}
+        metricas={metricas}
       />
     );
   }
@@ -59,10 +67,13 @@ export default async function PortalPage({ params }: Props) {
   // Si el slug no coincide, redirigir al portal correcto en lugar de 404
   if (project.slug !== slug) redirect(`/portal/${project.slug}`);
 
+  const metricas = await loadMetricas(project.metricas_source).catch(() => null);
+
   return (
     <PortalView
       project={{ ...project, porcentaje_calculado: calcPorcentaje(project) }}
       portalUser={portalUser}
+      metricas={metricas}
     />
   );
 }

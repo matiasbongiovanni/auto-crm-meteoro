@@ -2,7 +2,8 @@ import Image from "next/image";
 import { PortalProgress } from "./PortalProgress";
 import { PortalTaskList } from "./PortalTaskList";
 import { PortalTimeline } from "./PortalTimeline";
-import type { PortalProject, PortalTask, PortalUser } from "@/types/portal";
+import { PortalMetricas } from "./PortalMetricas";
+import type { PortalProject, PortalTask, PortalUser, EcommerceMetricas } from "@/types/portal";
 
 const BOLT = "M18 4L9 17H15.5L10 28L23 15H16L21 4Z";
 
@@ -18,9 +19,10 @@ function diasRestantes(fecha: string): number {
 type Props = {
   project: PortalProject & { porcentaje_calculado: number };
   portalUser: PortalUser;
+  metricas?: EcommerceMetricas | null;
 };
 
-export function PortalView({ project, portalUser }: Props) {
+export function PortalView({ project, portalUser, metricas }: Props) {
   const tasks = project.tasks ?? [];
   const updates = project.updates ?? [];
   const completadas = tasks.filter((t: PortalTask) => t.status === "completada").length;
@@ -147,6 +149,9 @@ export function PortalView({ project, portalUser }: Props) {
             <PortalTaskList tasks={tasks} />
           </div>
         </div>
+
+        {/* Métricas ecommerce (solo si el proyecto tiene fuente configurada) */}
+        {metricas && <PortalMetricas metricas={metricas} />}
 
         {/* Timeline */}
         {updates.length > 0 ? (

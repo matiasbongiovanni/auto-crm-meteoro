@@ -24,6 +24,8 @@ export type PortalUpdate = {
   created_at?: string;
 };
 
+export type MetricasSource = "drenova_carritos";
+
 export type PortalProject = {
   id: string;
   cliente_id: string;
@@ -34,11 +36,57 @@ export type PortalProject = {
   fecha_inicio: string;
   fecha_estimada?: string | null;
   activo: boolean;
+  metricas_source?: MetricasSource | null;
   created_at?: string;
   updated_at?: string;
   tasks?: PortalTask[];
   updates?: PortalUpdate[];
   portal_user?: PortalUser | null;
+};
+
+export type MetricasCarritosDia = {
+  dia: string;
+  carritos: number;
+  recuperados: number;
+  con_clic: number;
+  con_respuesta: number;
+  tasa_recuperacion: number;
+  monto_recuperado: number;
+  monto_abandonado: number;
+  /** Recuperados con mensaje de campaña enviado ANTES de la compra (atribución real). */
+  recuperados_campana: number;
+  /** Recuperados que compraron antes de que saliera el mensaje (venta orgánica, no atribuible). */
+  recuperados_organico: number;
+  tasa_recuperacion_campana: number;
+  monto_recuperado_campana: number;
+};
+
+export type MetricasEnviosDia = {
+  dia: string;
+  courier: string;
+  pedidos: number;
+  entregados: number;
+  intentos_fallidos: number;
+  demorados: number;
+  entrega_estimada: number;
+  dias_promedio_entrega: number | null;
+};
+
+export type MetricasMensajesDia = {
+  dia: string;
+  plantilla_key: string;
+  categoria: string;
+  modulo: string | null;
+  enviados: number;
+  errores: number;
+  cancelados: number;
+  pendientes: number;
+};
+
+export type EcommerceMetricas = {
+  carritos: MetricasCarritosDia[];
+  envios: MetricasEnviosDia[];
+  mensajes: MetricasMensajesDia[];
 };
 
 export type PortalUser = {
