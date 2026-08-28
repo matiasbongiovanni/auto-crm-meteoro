@@ -3,7 +3,10 @@ import { PortalProgress } from "./PortalProgress";
 import { PortalTaskList } from "./PortalTaskList";
 import { PortalTimeline } from "./PortalTimeline";
 import { PortalMetricas } from "./PortalMetricas";
-import type { PortalProject, PortalTask, PortalUser, EcommerceMetricas } from "@/types/portal";
+import { PortalMetricasPedidos } from "./PortalMetricasPedidos";
+import { PortalPdfButton } from "./PortalPdfButton";
+import { plantillasCampanaFor } from "@/lib/ecommerce-metrics/plantillas-campana";
+import type { PortalProject, PortalTask, PortalUser, EcommerceMetricas, PedidosEstadoMetricas, PortalBilling } from "@/types/portal";
 
 function SectionLabel({ children, count }: { children: React.ReactNode; count?: number }) {
   return (
@@ -28,15 +31,19 @@ type Props = {
   project: PortalProject & { porcentaje_calculado: number };
   portalUser: PortalUser;
   metricas?: EcommerceMetricas | null;
+  pedidosMetricas?: PedidosEstadoMetricas | null;
+  billing?: PortalBilling | null;
 };
 
-export function PortalView({ project, portalUser, metricas }: Props) {
+export function PortalView({ project, portalUser, metricas, pedidosMetricas, billing }: Props) {
   const tasks = project.tasks ?? [];
   const updates = project.updates ?? [];
   const completadas = tasks.filter((t: PortalTask) => t.status === "completada").length;
   const enProgreso = tasks.filter((t: PortalTask) => t.status === "en_progreso").length;
   const porcentaje = project.porcentaje_calculado;
   const dias = project.fecha_estimada ? diasRestantes(project.fecha_estimada) : null;
+  const esDashboardOperativo = !!metricas || !!pedidosMetricas;
+  const diasPago = billing?.proximo_pago ? diasRestantes(billing.proximo_pago) : null;
 
   return (
     <div className="relative min-h-screen bg-[#08080a] text-white overflow-hidden">
@@ -65,6 +72,7 @@ export function PortalView({ project, portalUser, metricas }: Props) {
             priority
           />
           <div className="flex items-center gap-3">
+            <PortalPdfButton project={project} portalUser={portalUser} metricas={metricas} pedidosMetricas={pedidosMetricas} />
             <span className="text-sm text-white/45">{portalUser.nombre}</span>
             <div className="w-9 h-9 rounded-full bg-white/10 border border-white/15 flex items-center justify-center text-[13px] font-bold text-white/70 uppercase shadow-[0_4px_16px_-4px_rgba(0,0,0,0.6)]">
               {portalUser.nombre.charAt(0)}
@@ -126,12 +134,25 @@ export function PortalView({ project, portalUser, metricas }: Props) {
                   </p>
                 </div>
               )}
+              {billing?.proximo_pago && diasPago != null && (
+                <div>
+                  <p className="text-[9px] uppercase tracking-[0.18em] text-white/25 mb-1">Próximo pago</p>
+                  <p className={`text-2xl font-bold tabular-nums ${diasPago <= 0 ? "text-amber-300" : "text-white"}`}>
+                    {diasPago === 0 ? "Hoy" : formatShort(billing.proximo_pago)}
+                  </p>
+                  {billing.ciclo_nota && <p className="text-[10px] text-white/25 mt-1">{billing.ciclo_nota}</p>}
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Progreso + Tareas */}
-        <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-6">
+        {/* Dashboard operativo (ecommerce/servicio en marcha): métricas primero, es lo que el cliente vino a ver */}
+        {metricas && <PortalMetricas metricas={metricas} plantillasCampana={plantillasCampanaFor(project.metricas_source)} />}
+        {pedidosMetricas && <PortalMetricasPedidos metricas={pedidosMetricas} />}
+
+        {/* Progreso + Tareas — en dashboards operativos queda más chico y abajo (contexto del proyecto, no el foco) */}
+        <div className={esDashboardOperativo ? "grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-6" : "grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-6"}>
           <div className="rounded-2xl bg-white/[0.02] border border-white/8 p-7 flex flex-col items-center justify-center shadow-[0_1px_0_rgba(255,255,255,0.05)_inset,0_20px_50px_-24px_rgba(0,0,0,0.65)]">
             <PortalProgress porcentaje={porcentaje} completadas={completadas} total={tasks.length} />
           </div>
@@ -141,9 +162,6 @@ export function PortalView({ project, portalUser, metricas }: Props) {
             <PortalTaskList tasks={tasks} />
           </div>
         </div>
-
-        {/* Métricas ecommerce (solo si el proyecto tiene fuente configurada) */}
-        {metricas && <PortalMetricas metricas={metricas} />}
 
         {/* Timeline */}
         {updates.length > 0 ? (

@@ -24,7 +24,12 @@ export type PortalUpdate = {
   created_at?: string;
 };
 
-export type MetricasSource = "drenova_carritos";
+export type MetricasSource = "drenova_carritos" | "urobalance_carritos" | "puntoshop_pedidos";
+
+export type PortalBilling = {
+  proximo_pago?: string | null;
+  ciclo_nota?: string | null;
+};
 
 export type PortalProject = {
   id: string;
@@ -87,6 +92,19 @@ export type EcommerceMetricas = {
   carritos: MetricasCarritosDia[];
   envios: MetricasEnviosDia[];
   mensajes: MetricasMensajesDia[];
+};
+
+export type PedidosEstadoDia = {
+  dia: string;
+  confirmados: number;
+  reprogramados: number;
+  cancelados: number;
+  sin_accion: number;
+};
+
+export type PedidosEstadoMetricas = {
+  dias: PedidosEstadoDia[];
+  totales: { confirmados: number; reprogramados: number; cancelados: number; sin_accion: number };
 };
 
 export type PortalUser = {

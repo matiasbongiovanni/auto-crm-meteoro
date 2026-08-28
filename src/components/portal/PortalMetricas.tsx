@@ -14,16 +14,24 @@ function sum<T>(arr: T[], pick: (x: T) => number) {
   return arr.reduce((acc, x) => acc + pick(x), 0);
 }
 
-type Props = { metricas: EcommerceMetricas; moneda?: string };
+type Props = { metricas: EcommerceMetricas; moneda?: string; plantillasCampana: string[] };
 
-export function PortalMetricas({ metricas, moneda = "ARS" }: Props) {
+export function PortalMetricas({ metricas, moneda = "ARS", plantillasCampana }: Props) {
   const { carritos, envios, mensajes } = metricas;
 
   const totalCarritos = sum(carritos, (c) => c.carritos);
   const totalRecuperadosCampana = sum(carritos, (c) => c.recuperados_campana);
   const totalRecuperadosOrganico = sum(carritos, (c) => c.recuperados_organico);
   const totalRecuperadosBruto = totalRecuperadosCampana + totalRecuperadosOrganico;
-  const tasaConversion = totalCarritos > 0 ? Math.round((totalRecuperadosCampana / totalCarritos) * 1000) / 10 : 0;
+  // El set de plantillas acá tiene que ser EXACTO al que usa recuperado_por_campana
+  // en v_metricas_carritos (ver salidas/workflows/<cliente>/*.sql) — si no, numerador
+  // y denominador miden poblaciones distintas y la tasa queda mentirosa.
+  const mensajesCarritoEnviados = sum(
+    mensajes.filter((m) => plantillasCampana.includes(m.plantilla_key)),
+    (m) => m.enviados
+  );
+  const tasaConversion =
+    mensajesCarritoEnviados > 0 ? Math.round((totalRecuperadosCampana / mensajesCarritoEnviados) * 1000) / 10 : 0;
   const ventasRecuperadas = sum(carritos, (c) => c.monto_recuperado_campana);
   const montoAbandonado = sum(carritos, (c) => c.monto_abandonado);
   const totalEnviados = sum(mensajes, (m) => m.enviados);
@@ -73,7 +81,7 @@ export function PortalMetricas({ metricas, moneda = "ARS" }: Props) {
             <p className="text-4xl md:text-5xl font-bold text-emerald-400/90 tabular-nums tracking-tight">
               {tasaConversion}%
             </p>
-            <p className="text-xs text-white/35 mt-2">tasa de conversión real (recuperados / abandonados)</p>
+            <p className="text-xs text-white/35 mt-2">tasa de conversión (recuperados / mensajes de recuperación enviados)</p>
           </div>
         </div>
 
@@ -121,6 +129,7 @@ export function PortalMetricas({ metricas, moneda = "ARS" }: Props) {
               {totalEnviados}
               {totalErrores > 0 && <span className="text-red-400/70 font-light text-base ml-1">({totalErrores} err)</span>}
             </p>
+            <p className="text-[9px] text-white/20 mt-1">(sumando confirmaciones de compra y envío)</p>
           </div>
         </div>
       </div>

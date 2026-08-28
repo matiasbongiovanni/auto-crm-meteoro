@@ -4,6 +4,20 @@ import { getPublicSupabaseEnv } from "@/lib/supabase-env";
 import { sendPortalInvite } from "@/lib/portal-invite-email";
 import { ALLOWED_EMAILS } from "@/lib/allowed-emails";
 
+// Billing del portal vive en crm_state (sin migración SQL) — namespaced por
+// state_key fijo, payload es un objeto { [project_id]: { proximo_pago, ciclo_nota } }.
+const BILLING_STATE_KEY = "portal_billing";
+const BILLING_USER_ID = "c13e61eb-1dee-4796-88b1-55edf57b6ec6"; // matiasweschta@gmail.com
+
+async function getBillingMap(supabase: ReturnType<typeof getSupabaseServerClient>) {
+  const { data } = await supabase
+    .from("crm_state")
+    .select("payload")
+    .eq("state_key", BILLING_STATE_KEY)
+    .maybeSingle();
+  return (data?.payload as Record<string, { proximo_pago?: string | null; ciclo_nota?: string | null }>) ?? {};
+}
+
 async function verifyMati(request: NextRequest) {
   const authHeader = request.headers.get("authorization") || "";
   const token = authHeader.replace(/^Bearer\s+/i, "").trim();
@@ -34,7 +48,10 @@ export async function GET(request: NextRequest) {
     .eq("cliente_id", clienteId)
     .maybeSingle();
 
-  return NextResponse.json({ ok: true, project: project ?? null });
+  if (!project) return NextResponse.json({ ok: true, project: null });
+
+  const billingMap = await getBillingMap(supabase);
+  return NextResponse.json({ ok: true, project: { ...project, billing: billingMap[project.id] ?? null } });
 }
 
 export async function POST(request: NextRequest) {
@@ -182,6 +199,18 @@ export async function POST(request: NextRequest) {
       portalUrl,
     });
 
+    return NextResponse.json({ ok: true });
+  }
+
+  // ─── Guardar billing (próximo pago) ────────────────────────────────────
+  if (action === "save-billing") {
+    const { project_id, proximo_pago, ciclo_nota } = body;
+    const billingMap = await getBillingMap(supabase);
+    billingMap[project_id] = { proximo_pago: proximo_pago || null, ciclo_nota: ciclo_nota || null };
+    const { error } = await supabase
+      .from("crm_state")
+      .upsert({ user_id: BILLING_USER_ID, state_key: BILLING_STATE_KEY, payload: billingMap, updated_at: new Date().toISOString() }, { onConflict: "user_id,state_key" });
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });
   }
 

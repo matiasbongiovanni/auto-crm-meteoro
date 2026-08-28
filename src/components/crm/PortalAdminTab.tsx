@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Copy, Check, Plus, Trash2, ChevronUp, ChevronDown, Send, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { useCrm } from "@/components/crm/provider";
-import type { PortalProject, PortalTask, PortalTaskCategory, PortalTaskStatus, PortalUpdateType, PortalUpdate } from "@/types/portal";
+import type { PortalProject, PortalTask, PortalTaskCategory, PortalTaskStatus, PortalUpdateType, PortalUpdate, PortalBilling } from "@/types/portal";
 
 function slugify(str: string): string {
   return str
@@ -43,8 +43,10 @@ type UpdateForm = { mensaje: string; tipo: PortalUpdateType; fecha: string };
 
 export function PortalAdminTab({ clienteId, clienteNombre, clienteEmpresa, clienteEmail }: Props) {
   const { session } = useCrm();
-  const [project, setProject] = useState<(PortalProject & { portal_user?: { email: string; nombre: string; invited_at?: string | null } | null }) | null | undefined>(undefined);
+  const [project, setProject] = useState<(PortalProject & { portal_user?: { email: string; nombre: string; invited_at?: string | null } | null; billing?: PortalBilling | null }) | null | undefined>(undefined);
   const [loading, setLoading] = useState(true);
+  const [billingForm, setBillingForm] = useState<{ proximo_pago: string; ciclo_nota: string }>({ proximo_pago: "", ciclo_nota: "" });
+  const [savingBilling, setSavingBilling] = useState(false);
 
   // Form de creación
   const [newProject, setNewProject] = useState({
@@ -85,6 +87,7 @@ export function PortalAdminTab({ clienteId, clienteNombre, clienteEmpresa, clien
       const data = await res.json();
       if (data.project) {
         setProject(data.project);
+        setBillingForm({ proximo_pago: data.project.billing?.proximo_pago || "", ciclo_nota: data.project.billing?.ciclo_nota || "" });
         const sortedTasks = (data.project.tasks || []).sort((a: PortalTask, b: PortalTask) => a.orden - b.orden);
         setTasks(sortedTasks);
         const sortedUpdates = (data.project.updates || []).sort((a: PortalUpdate, b: PortalUpdate) => b.fecha.localeCompare(a.fecha));
@@ -144,6 +147,21 @@ export function PortalAdminTab({ clienteId, clienteNombre, clienteEmpresa, clien
       if (!data.ok) { toast.error(data.error); return; }
       toast.success("Guardado.");
     } catch { toast.error("Error al guardar."); }
+  }
+
+  async function saveBilling() {
+    if (!session?.access_token || !project) return;
+    setSavingBilling(true);
+    try {
+      const res = await fetch("/api/portal/admin", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ action: "save-billing", project_id: project.id, proximo_pago: billingForm.proximo_pago || null, ciclo_nota: billingForm.ciclo_nota || null }),
+      });
+      const data = await res.json();
+      if (!data.ok) { toast.error(data.error); return; }
+      toast.success("Guardado.");
+    } catch { toast.error("Error al guardar."); } finally { setSavingBilling(false); }
   }
 
   async function saveTasks() {
@@ -366,6 +384,24 @@ export function PortalAdminTab({ clienteId, clienteNombre, clienteEmpresa, clien
         </div>
         <button onClick={saveProjectSettings} className="w-full bg-white/10 text-white rounded-lg py-2 text-sm hover:bg-white/15 transition-colors">
           Guardar configuración
+        </button>
+      </div>
+
+      {/* Facturación */}
+      <div className="space-y-3">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-white/30">Facturación</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[10px] text-white/40 uppercase tracking-wider mb-1">Próximo pago</label>
+            <input type="date" className={inp} value={billingForm.proximo_pago} onChange={(e) => setBillingForm((f) => ({ ...f, proximo_pago: e.target.value }))} />
+          </div>
+          <div>
+            <label className="block text-[10px] text-white/40 uppercase tracking-wider mb-1">Nota del ciclo (opcional)</label>
+            <input className={inp} value={billingForm.ciclo_nota} onChange={(e) => setBillingForm((f) => ({ ...f, ciclo_nota: e.target.value }))} placeholder="Ej: Ciclo mensual, día 1 al 10" />
+          </div>
+        </div>
+        <button onClick={saveBilling} disabled={savingBilling} className="w-full bg-white/10 text-white rounded-lg py-2 text-sm hover:bg-white/15 transition-colors disabled:opacity-50">
+          {savingBilling ? "Guardando..." : "Guardar facturación"}
         </button>
       </div>
 

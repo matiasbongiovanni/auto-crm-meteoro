@@ -5,9 +5,18 @@ import { getSupabaseServerClient } from "@/lib/server-supabase";
 import { createClient } from "@/lib/supabase/server";
 import { PortalView } from "@/components/portal/PortalView";
 import { getDrenovaMetricas } from "@/lib/ecommerce-metrics/drenova";
-import type { PortalTask, EcommerceMetricas, MetricasSource } from "@/types/portal";
+import { getUrobalanceMetricas } from "@/lib/ecommerce-metrics/urobalance";
+import { getPuntoshopMetricas } from "@/lib/ecommerce-metrics/puntoshop";
+import type { PortalTask, EcommerceMetricas, MetricasSource, PortalBilling, PedidosEstadoMetricas } from "@/types/portal";
 
 const ADMIN_EMAILS = ["matiasweschta@gmail.com"];
+const BILLING_STATE_KEY = "portal_billing";
+
+async function loadBilling(svc: ReturnType<typeof getSupabaseServerClient>, projectId: string): Promise<PortalBilling | null> {
+  const { data } = await svc.from("crm_state").select("payload").eq("state_key", BILLING_STATE_KEY).maybeSingle();
+  const map = (data?.payload as Record<string, PortalBilling>) ?? {};
+  return map[projectId] ?? null;
+}
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -24,6 +33,12 @@ function calcPorcentaje(project: { porcentaje_manual?: number | null; tasks?: Po
 
 async function loadMetricas(source: MetricasSource | null | undefined): Promise<EcommerceMetricas | null> {
   if (source === "drenova_carritos") return getDrenovaMetricas(30);
+  if (source === "urobalance_carritos") return getUrobalanceMetricas();
+  return null;
+}
+
+async function loadPedidosMetricas(source: MetricasSource | null | undefined): Promise<PedidosEstadoMetricas | null> {
+  if (source === "puntoshop_pedidos") return getPuntoshopMetricas(30);
   return null;
 }
 
@@ -46,11 +61,15 @@ export default async function PortalPage({ params }: Props) {
     const updates = (project.updates ?? []).sort((a: { fecha: string }, b: { fecha: string }) => b.fecha.localeCompare(a.fecha));
     const porcentaje = calcPorcentaje(project);
     const metricas = await loadMetricas(project.metricas_source).catch(() => null);
+    const pedidosMetricas = await loadPedidosMetricas(project.metricas_source).catch(() => null);
+    const billing = await loadBilling(svc, project.id).catch(() => null);
     return (
       <PortalView
         project={{ ...project, tasks, updates, porcentaje_calculado: porcentaje }}
         portalUser={{ id: adminUser.id, project_id: project.id, email: adminUser.email, nombre: "Admin (vista previa)", supabase_user_id: adminUser.id }}
         metricas={metricas}
+        pedidosMetricas={pedidosMetricas}
+        billing={billing}
       />
     );
   }
@@ -68,12 +87,16 @@ export default async function PortalPage({ params }: Props) {
   if (project.slug !== slug) redirect(`/portal/${project.slug}`);
 
   const metricas = await loadMetricas(project.metricas_source).catch(() => null);
+  const pedidosMetricas = await loadPedidosMetricas(project.metricas_source).catch(() => null);
+  const billing = await loadBilling(getSupabaseServerClient(), project.id).catch(() => null);
 
   return (
     <PortalView
       project={{ ...project, porcentaje_calculado: calcPorcentaje(project) }}
       portalUser={portalUser}
       metricas={metricas}
+      pedidosMetricas={pedidosMetricas}
+      billing={billing}
     />
   );
 }
