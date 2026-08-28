@@ -1,12 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Hanken_Grotesk, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { ServiceWorkerRegister } from "@/components/shared/ServiceWorkerRegister";
 import { headers } from "next/headers";
 
-const geistSans = Geist({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
-const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono", display: "swap" });
+const hankenGrotesk = Hanken_Grotesk({ subsets: ["latin"], variable: "--font-hanken", display: "swap" });
+const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space-grotesk", display: "swap" });
+const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains", display: "swap" });
 
 export const metadata: Metadata = {
   title: "Meteoro CRM",
@@ -36,7 +37,7 @@ export default async function RootLayout({
     <html
       lang="es"
       nonce={nonce}
-      className={`dark h-full ${geistSans.variable} ${geistMono.variable}`}
+      className={`dark h-full ${hankenGrotesk.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}
       suppressHydrationWarning
     >
       <body className="min-h-full bg-background text-foreground antialiased" suppressHydrationWarning>

@@ -160,9 +160,9 @@ export function renderInformePortal({ project, portalUser, metricas, pedidosMetr
 <style>
   @page { size: A4; margin: 0; }
   html,body { height: auto; }
-  @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #08080a; color: #fff; font-family: 'Geist', 'Inter', sans-serif; display: flex; justify-content: center; padding: 0; }
+  body { background: #08080a; color: #fff; font-family: 'Hanken Grotesk', 'Inter', sans-serif; display: flex; justify-content: center; padding: 0; }
   .doc { width: 794px; height: 1123px; overflow: hidden; background: #08080a; position: relative; display: flex; flex-direction: column; }
   .glow { position: absolute; top: -260px; left: 50%; transform: translateX(-50%); width: 900px; height: 900px; border-radius: 50%; background: radial-gradient(circle, #ffffff 0%, transparent 70%); opacity: .08; filter: blur(140px); pointer-events: none; }
   .topbar { height: 2px; width: 100%; background: rgba(255,255,255,.06); }
