@@ -76,11 +76,20 @@ function parseFechaEs(fecha: string): string | null {
   return `${anio}-${mes}-${dia}`;
 }
 
-/** `Fecha` viene en ISO con offset (ej. 2026-08-07T22:33:40-03:00) o, para reprogramados, en texto español ("martes 11 ago"). Muchas filas viejas la tienen vacía. */
+/**
+ * `Fecha` viene en ISO con offset (ej. 2026-08-07T22:33:40-03:00) o, para reprogramados,
+ * en texto español ("martes 11 ago"). Muchas filas viejas la tienen vacía.
+ *
+ * OJO: `new Date(fecha)` NO sirve para distinguir los dos formatos — V8 parsea
+ * de forma laxa strings como "jueves 3 sep" y devuelve una fecha inválida pero
+ * "válida" (no NaN), así que la rama ISO se ejecutaba también con texto en
+ * español y truncaba a "jueves 3 s" (los primeros 10 caracteres del string
+ * original). Esas filas quedaban silenciosamente afuera de todos los días del
+ * rango. Se resuelve exigiendo el prefijo ISO explícito antes de confiar en `Date`.
+ */
 function diaDe(fecha: string): string | null {
   if (!fecha) return null;
-  const d = new Date(fecha);
-  if (!Number.isNaN(d.getTime())) return fecha.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}/.test(fecha)) return fecha.slice(0, 10);
   return parseFechaEs(fecha);
 }
 
