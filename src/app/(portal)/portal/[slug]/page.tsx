@@ -38,7 +38,7 @@ async function loadMetricas(source: MetricasSource | null | undefined): Promise<
 }
 
 async function loadPedidosMetricas(source: MetricasSource | null | undefined): Promise<PedidosEstadoMetricas | null> {
-  if (source === "puntoshop_pedidos") return getPuntoshopMetricas(30);
+  if (source === "puntoshop_pedidos") return getPuntoshopMetricas();
   return null;
 }
 

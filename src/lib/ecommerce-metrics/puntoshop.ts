@@ -50,49 +50,93 @@ async function readPuntoshopSheet(): Promise<string[][]> {
   return rows;
 }
 
-/** `Fecha` viene en ISO con offset (ej. 2026-08-07T22:33:40-03:00). Muchas filas viejas la tienen vacía. */
+const MESES_ES: Record<string, string> = {
+  ene: "01", feb: "02", mar: "03", abr: "04", may: "05", jun: "06",
+  jul: "07", ago: "08", sep: "09", set: "09", oct: "10", nov: "11", dic: "12",
+};
+
+function quitarAcentos(s: string): string {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
+/**
+ * El workflow de reprogramación (`PuntoShop - Encuesta 5 min`) no escribe una
+ * fecha ISO en `Fecha` — escribe el día elegido en la encuesta como texto libre
+ * en español, ej. "martes 11 ago" o "jueves 3 sep" (sin año). `new Date()` no
+ * puede parsear eso y esas filas quedaban silenciosamente afuera del reporte
+ * (129 de 135 reprogramados). Se resuelve acá con el año actual en ART.
+ */
+function parseFechaEs(fecha: string): string | null {
+  const m = quitarAcentos(fecha.trim().toLowerCase()).match(/(\d{1,2})\s+([a-z]+)\.?\s*$/);
+  if (!m) return null;
+  const dia = m[1].padStart(2, "0");
+  const mes = MESES_ES[m[2].slice(0, 3)];
+  if (!mes) return null;
+  const anio = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Buenos_Aires", year: "numeric" }).format(new Date());
+  return `${anio}-${mes}-${dia}`;
+}
+
+/** `Fecha` viene en ISO con offset (ej. 2026-08-07T22:33:40-03:00) o, para reprogramados, en texto español ("martes 11 ago"). Muchas filas viejas la tienen vacía. */
 function diaDe(fecha: string): string | null {
   if (!fecha) return null;
   const d = new Date(fecha);
-  if (Number.isNaN(d.getTime())) return null;
-  return fecha.slice(0, 10);
+  if (!Number.isNaN(d.getTime())) return fecha.slice(0, 10);
+  return parseFechaEs(fecha);
 }
 
+/** "2026-08-28" en huso horario ART, sin importar en qué TZ corre el server (Vercel = UTC). */
+function hoyArt(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Buenos_Aires", year: "numeric", month: "2-digit", day: "2-digit" })
+    .format(new Date()); // en-CA da "2026-08-28"
+}
+
+/** N días atrás en formato "YYYY-MM-DD" (ART), incluyendo hoy. */
+function diasAtras(n: number): string[] {
+  const out: string[] = [];
+  const hoy = hoyArt();
+  const base = new Date(`${hoy}T12:00:00`); // mediodía para evitar corrimiento de día por DST/UTC
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(base);
+    d.setDate(d.getDate() - i);
+    out.push(new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Buenos_Aires", year: "numeric", month: "2-digit", day: "2-digit" }).format(d));
+  }
+  return out;
+}
+
+/**
+ * Métricas de los últimos `dias` días (default 30, mismo patrón que Drenova/UroBalance).
+ * Devuelve un balde por día (incluso en cero, para que el gráfico no tenga huecos) + totales del período.
+ */
 export async function getPuntoshopMetricas(dias = 30): Promise<PedidosEstadoMetricas> {
   const rows = await readPuntoshopSheet();
   const header = rows[0];
   const idxEstado = header.indexOf("Estado");
   const idxFecha = header.indexOf("Fecha");
 
-  const desde = new Date();
-  desde.setDate(desde.getDate() - dias);
-  const desdeStr = desde.toISOString().slice(0, 10);
-
-  const porDia = new Map<string, PedidosEstadoDia>();
+  const rango = diasAtras(dias);
+  const rangoSet = new Set(rango);
+  const porDia = new Map<string, PedidosEstadoDia>(
+    rango.map((dia) => [dia, { dia, confirmados: 0, reprogramados: 0, cancelados: 0, sin_accion: 0 }])
+  );
   const totales = { confirmados: 0, reprogramados: 0, cancelados: 0, sin_accion: 0 };
 
   for (const row of rows.slice(1)) {
     const estadoRaw = (row[idxEstado] ?? "").trim();
     const fechaRaw = idxFecha >= 0 ? (row[idxFecha] ?? "").trim() : "";
-    const dia = diaDe(fechaRaw);
+    const filaDia = diaDe(fechaRaw);
 
-    // Filas sin `Fecha` parseable (comunes en registros viejos) no se pueden
-    // ubicar dentro del período elegido — se excluyen del reporte en vez de
-    // arriesgar inflar los totales con pedidos de fecha desconocida.
-    if (!dia || dia < desdeStr) continue;
+    // El workflow de cancelación ("Cancelar no manda nada") nunca escribe
+    // `Fecha` — no hay forma de ubicarlo en el rango, así que queda afuera
+    // del gráfico diario y de los totales (no hay día al que asignarlo).
+    if (estadoRaw === "Cancelado") continue;
+    if (!filaDia || !rangoSet.has(filaDia)) continue;
 
-    let campo: keyof typeof totales;
-    if (estadoRaw === "Confirmado") campo = "confirmados";
-    else if (estadoRaw === "Reprogramado") campo = "reprogramados";
-    else if (estadoRaw === "Cancelado") campo = "cancelados";
-    else campo = "sin_accion";
+    const campo: keyof typeof totales = estadoRaw === "Confirmado" ? "confirmados"
+      : estadoRaw === "Reprogramado" ? "reprogramados"
+      : "sin_accion";
 
     totales[campo]++;
-
-    if (!porDia.has(dia)) {
-      porDia.set(dia, { dia, confirmados: 0, reprogramados: 0, cancelados: 0, sin_accion: 0 });
-    }
-    porDia.get(dia)![campo]++;
+    porDia.get(filaDia)![campo]++;
   }
 
   const diasOrdenados = [...porDia.values()].sort((a, b) => a.dia.localeCompare(b.dia));
