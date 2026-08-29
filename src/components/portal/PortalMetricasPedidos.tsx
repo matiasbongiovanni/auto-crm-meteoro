@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { PedidosEstadoDia, PedidosEstadoMetricas } from "@/types/portal";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import type { PedidosEstadoMetricas } from "@/types/portal";
 
 const CARD = "rounded-2xl bg-white/[0.02] border border-white/8 shadow-[0_1px_0_rgba(255,255,255,0.05)_inset,0_20px_50px_-24px_rgba(0,0,0,0.65)]";
 
@@ -9,44 +10,25 @@ function pct(n: number, total: number) {
   return total > 0 ? Math.round((n / total) * 1000) / 10 : 0;
 }
 
-function formatShort(dia: string) {
-  return new Date(dia + "T00:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" });
-}
-
 function formatLong(dia: string) {
   return new Date(dia + "T00:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
-}
-
-function totalDia(d: PedidosEstadoDia) {
-  return d.confirmados + d.reprogramados + d.cancelados + d.sin_accion;
 }
 
 type Props = { metricas: PedidosEstadoMetricas };
 
 export function PortalMetricasPedidos({ metricas }: Props) {
   const { dias } = metricas;
-  const [diaSeleccionado, setDiaSeleccionado] = useState<string | null>(null); // null = período completo
+  const [indice, setIndice] = useState(dias.length - 1); // último día = hoy
 
-  const activo = useMemo(() => {
-    if (!diaSeleccionado) {
-      return dias.reduce(
-        (acc, d) => ({
-          confirmados: acc.confirmados + d.confirmados,
-          reprogramados: acc.reprogramados + d.reprogramados,
-          cancelados: acc.cancelados + d.cancelados,
-          sin_accion: acc.sin_accion + d.sin_accion,
-        }),
-        { confirmados: 0, reprogramados: 0, cancelados: 0, sin_accion: 0 }
-      );
-    }
-    const d = dias.find((x) => x.dia === diaSeleccionado);
-    return d ?? { confirmados: 0, reprogramados: 0, cancelados: 0, sin_accion: 0 };
-  }, [dias, diaSeleccionado]);
-
+  const dia = dias[indice];
+  const activo = dia ?? { confirmados: 0, reprogramados: 0, cancelados: 0, sin_accion: 0 };
   const total = activo.confirmados + activo.reprogramados + activo.cancelados + activo.sin_accion;
   const pctConfirmados = pct(activo.confirmados, total);
   const pctFriccion = pct(activo.cancelados + activo.reprogramados, total);
-  const maxTotal = Math.max(1, ...dias.map(totalDia));
+
+  const esHoy = indice === dias.length - 1;
+  const puedeAtras = indice > 0;
+  const puedeAdelante = indice < dias.length - 1;
 
   return (
     <div className="space-y-6">
@@ -57,20 +39,28 @@ export function PortalMetricasPedidos({ metricas }: Props) {
             Métricas · Confirmación de pedidos por WhatsApp
           </h2>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-white/25">
-            {diaSeleccionado ? formatLong(diaSeleccionado) : `Últimos ${dias.length} días`}
-          </span>
-          <select
-            value={diaSeleccionado ?? ""}
-            onChange={(e) => setDiaSeleccionado(e.target.value || null)}
-            className="bg-white/[0.03] border border-white/10 rounded-lg text-[11px] text-white/70 px-2.5 py-1.5 outline-none focus:border-white/25"
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setIndice((i) => Math.max(0, i - 1))}
+            disabled={!puedeAtras}
+            className="w-7 h-7 flex items-center justify-center rounded-lg border border-white/10 text-white/50 disabled:opacity-20 disabled:cursor-not-allowed hover:bg-white/[0.04] hover:text-white/80 transition-colors"
+            aria-label="Día anterior"
           >
-            <option value="">Todo el período</option>
-            {[...dias].reverse().map((d) => (
-              <option key={d.dia} value={d.dia}>{formatShort(d.dia)}</option>
-            ))}
-          </select>
+            <ChevronLeft size={14} />
+          </button>
+          <span className="text-[11px] text-white/50 capitalize min-w-[9rem] text-center">
+            {dia ? (esHoy ? "Hoy" : formatLong(dia.dia)) : "—"}
+          </span>
+          <button
+            type="button"
+            onClick={() => setIndice((i) => Math.min(dias.length - 1, i + 1))}
+            disabled={!puedeAdelante}
+            className="w-7 h-7 flex items-center justify-center rounded-lg border border-white/10 text-white/50 disabled:opacity-20 disabled:cursor-not-allowed hover:bg-white/[0.04] hover:text-white/80 transition-colors"
+            aria-label="Día siguiente"
+          >
+            <ChevronRight size={14} />
+          </button>
         </div>
       </div>
 
@@ -100,54 +90,10 @@ export function PortalMetricasPedidos({ metricas }: Props) {
         </div>
       </div>
 
-      {/* Evolución diaria */}
-      {dias.some((d) => totalDia(d) > 0) && (
-        <div className={`${CARD} p-6`}>
-          <p className="text-[9px] uppercase tracking-[0.18em] text-white/25 mb-5">Evolución diaria</p>
-          <div className="flex items-end gap-1 h-32 overflow-x-auto">
-            {dias.map((d) => {
-              const t = totalDia(d);
-              const seleccionado = d.dia === diaSeleccionado;
-              return (
-                <button
-                  key={d.dia}
-                  type="button"
-                  onClick={() => setDiaSeleccionado(seleccionado ? null : d.dia)}
-                  className="flex-1 min-w-[8px] flex flex-col items-center justify-end gap-1 group relative cursor-pointer"
-                >
-                  <div className="w-full flex flex-col justify-end" style={{ height: 96 }}>
-                    <div
-                      className={`w-full rounded-t-sm relative overflow-hidden flex flex-col-reverse transition-opacity ${seleccionado ? "opacity-100" : "opacity-80 group-hover:opacity-100"}`}
-                      style={{ height: `${Math.max(t > 0 ? 4 : 1, (t / maxTotal) * 96)}px` }}
-                    >
-                      <div className="w-full bg-white/10" style={{ height: `${t > 0 ? (d.sin_accion / t) * 100 : 0}%` }} />
-                      <div className="w-full bg-amber-400/70" style={{ height: `${t > 0 ? ((d.cancelados + d.reprogramados) / t) * 100 : 0}%` }} />
-                      <div className="w-full bg-emerald-400/80" style={{ height: `${t > 0 ? (d.confirmados / t) * 100 : 0}%` }} />
-                    </div>
-                  </div>
-                  <span className={`text-[8px] tabular-nums ${seleccionado ? "text-white/70" : "text-white/20"}`}>
-                    {formatShort(d.dia)}
-                  </span>
-                  <div className="absolute -top-10 hidden group-hover:block bg-black border border-white/15 rounded px-2 py-1 text-[9px] text-white/80 whitespace-nowrap z-10">
-                    {d.confirmados} conf. · {d.reprogramados} repr. · {d.cancelados} canc. · {d.sin_accion} s/acción
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-          <div className="flex items-center gap-4 mt-4 text-[9px] text-white/25 uppercase tracking-wider">
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm bg-emerald-400/80 inline-block" /> Confirmados</span>
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm bg-amber-400/70 inline-block" /> Cancel. + reprog.</span>
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm bg-white/10 inline-block" /> Sin acción</span>
-          </div>
-          <p className="text-[9px] text-white/15 mt-3">Tocá una barra para ver el detalle de ese día.</p>
-        </div>
-      )}
-
       {total === 0 && (
         <div className="rounded-2xl py-10 text-center border border-dashed border-white/[0.06]">
           <p className="text-[11px] uppercase tracking-widest text-white/20">
-            Todavía no hay datos {diaSeleccionado ? "para ese día" : "en el período"}
+            Todavía no hay datos {esHoy ? "hoy" : "ese día"}
           </p>
         </div>
       )}
