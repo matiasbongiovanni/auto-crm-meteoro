@@ -21,10 +21,14 @@ export function PortalMetricasPedidos({ metricas }: Props) {
   const [indice, setIndice] = useState(dias.length - 1); // último día = hoy
 
   const dia = dias[indice];
-  const activo = dia ?? { confirmados: 0, reprogramados: 0, cancelados: 0, sin_accion: 0 };
+  const activo = dia ?? { confirmados: 0, reprogramados: 0, cancelados: 0, sin_accion: 0, canal_web: 0, canal_whatsapp: 0, canal_automatico: 0 };
   const total = activo.confirmados + activo.reprogramados + activo.cancelados + activo.sin_accion;
+  const accionesReales = activo.canal_web + activo.canal_whatsapp; // excluye automático y sin_accion — solo acciones donde alguien tocó algo
   const pctConfirmados = pct(activo.confirmados, total);
   const pctFriccion = pct(activo.cancelados + activo.reprogramados, total);
+  const pctCanalWeb = pct(activo.canal_web, accionesReales);
+  const pctCanalWhatsapp = pct(activo.canal_whatsapp, accionesReales);
+  const pctNoInteractua = pct(activo.canal_automatico + activo.sin_accion, total);
 
   const esHoy = indice === dias.length - 1;
   const puedeAtras = indice > 0;
@@ -80,12 +84,31 @@ export function PortalMetricasPedidos({ metricas }: Props) {
             <p className="text-2xl font-bold text-white tabular-nums">{activo.cancelados}</p>
           </div>
           <div>
-            <p className="text-[9px] uppercase tracking-[0.18em] text-white/25 mb-1">Sin acción</p>
+            <p className="text-[9px] uppercase tracking-[0.18em] text-white/25 mb-1">Sin acción (pendiente)</p>
             <p className="text-2xl font-bold text-white tabular-nums">{activo.sin_accion}</p>
           </div>
           <div>
             <p className="text-[9px] uppercase tracking-[0.18em] text-white/25 mb-1">Friccion (cancel. + reprog.)</p>
             <p className="text-2xl font-bold text-amber-400/90 tabular-nums">{pctFriccion}%</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Canal de la respuesta: acá se ve si tocan el botón de la web o responden por WhatsApp */}
+      <div className={`${CARD} p-7`}>
+        <p className="text-[9px] uppercase tracking-[0.18em] text-white/25 mb-4">Canal de la respuesta (de los que sí interactuaron)</p>
+        <div className="flex flex-wrap gap-x-10 gap-y-5">
+          <div>
+            <p className="text-[9px] uppercase tracking-[0.18em] text-white/25 mb-1">Botón página web</p>
+            <p className="text-2xl font-bold text-white tabular-nums">{activo.canal_web} <span className="text-xs font-normal text-white/30">({pctCanalWeb}%)</span></p>
+          </div>
+          <div>
+            <p className="text-[9px] uppercase tracking-[0.18em] text-white/25 mb-1">Encuesta WhatsApp</p>
+            <p className="text-2xl font-bold text-white tabular-nums">{activo.canal_whatsapp} <span className="text-xs font-normal text-white/30">({pctCanalWhatsapp}%)</span></p>
+          </div>
+          <div>
+            <p className="text-[9px] uppercase tracking-[0.18em] text-white/25 mb-1">No tocó nada (auto-cancelado o pendiente)</p>
+            <p className="text-2xl font-bold text-red-400/90 tabular-nums">{pctNoInteractua}%</p>
           </div>
         </div>
       </div>
@@ -99,7 +122,7 @@ export function PortalMetricasPedidos({ metricas }: Props) {
       )}
 
       <p className="text-[10px] text-white/15 leading-relaxed max-w-2xl">
-        &quot;Sin acción&quot; son pedidos que todavía no confirmaron, cancelaron ni reprogramaron a través de la encuesta de WhatsApp — pueden estar dentro de la ventana de espera o haber quedado sin resolución. Los cancelados no llevan fecha en la planilla, así que no se pueden ubicar en ningún día y no entran en este reporte.
+        &quot;Botón página web&quot; son clics reales en la página post-checkout. &quot;Encuesta WhatsApp&quot; son respuestas al mensaje de WhatsApp de los 5/65/125 minutos. &quot;No tocó nada&quot; son pedidos que el sistema canceló solo por timeout o que todavía están dentro de la ventana de espera — no hubo ninguna interacción real del cliente.
       </p>
     </div>
   );

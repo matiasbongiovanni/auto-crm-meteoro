@@ -59,3 +59,4 @@ data/crm.db-wal
 *.pfx
 credentials.json
 service-account*.json
+supabase/.temp/

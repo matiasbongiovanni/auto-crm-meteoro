@@ -100,11 +100,26 @@ export type PedidosEstadoDia = {
   reprogramados: number;
   cancelados: number;
   sin_accion: number;
+  // Canal por el que llegó la acción real (confirmado/reprogramado/cancelado).
+  // "sin_accion" no tiene canal — nadie tocó nada todavía.
+  canal_web: number;
+  canal_whatsapp: number;
+  canal_automatico: number;
+};
+
+export type PedidosEstadoTotales = {
+  confirmados: number;
+  reprogramados: number;
+  cancelados: number;
+  sin_accion: number;
+  canal_web: number;
+  canal_whatsapp: number;
+  canal_automatico: number;
 };
 
 export type PedidosEstadoMetricas = {
   dias: PedidosEstadoDia[];
-  totales: { confirmados: number; reprogramados: number; cancelados: number; sin_accion: number };
+  totales: PedidosEstadoTotales;
 };
 
 export type PortalUser = {

@@ -6,6 +6,7 @@ import { useCrm } from "@/components/crm/provider";
 import { useViewer } from "@/components/documentos/viewer-context";
 import { PresupuestoEditor } from "@/components/documentos/presupuesto-editor";
 import { BienvenidaEditor } from "@/components/documentos/bienvenida-editor";
+import { FacturaMantenimientoEditor } from "@/components/documentos/FacturaMantenimientoEditor";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -223,6 +224,7 @@ export default function DocumentosPage() {
   const [filterEstado, setFilterEstado] = useState<ProposalStatus | "todos">("todos");
 
   const [presupuestoOpen, setPresupuestoOpen] = useState(false);
+  const [facturaOpen, setFacturaOpen] = useState(false);
   const [bienvenidaOpen, setBienvenidaOpen] = useState<"bienvenida" | "onboarding" | null>(null);
   const [pendingPayload, setPendingPayload] = useState<Record<string, unknown> | null>(null);
   const [metaOpen, setMetaOpen] = useState(false);
@@ -299,6 +301,9 @@ export default function DocumentosPage() {
       <div className="flex flex-wrap gap-2">
         <Button size="sm" onClick={() => setPresupuestoOpen(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5">
           <Plus className="h-3.5 w-3.5" /> Presupuesto
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => setFacturaOpen(true)} className="border-border/50 gap-1.5">
+          <Plus className="h-3.5 w-3.5" /> Factura mantenimiento
         </Button>
         <Button size="sm" variant="outline" onClick={() => setBienvenidaOpen("bienvenida")} className="border-border/50 gap-1.5">
           <Plus className="h-3.5 w-3.5" /> Bienvenida
@@ -514,6 +519,14 @@ export default function DocumentosPage() {
             }}
             onClose={() => setPresupuestoOpen(false)}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Editor de factura de mantenimiento */}
+      <Dialog open={facturaOpen} onOpenChange={(o) => { if (!o) setFacturaOpen(false); }}>
+        <DialogContent className="bg-card border-border/60 max-w-md">
+          <DialogHeader><DialogTitle className="text-heading">Factura de mantenimiento</DialogTitle></DialogHeader>
+          <FacturaMantenimientoEditor onClose={() => setFacturaOpen(false)} />
         </DialogContent>
       </Dialog>
 

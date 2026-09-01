@@ -122,30 +122,40 @@ export async function getPuntoshopMetricas(dias = 30): Promise<PedidosEstadoMetr
   const idxEstado = header.indexOf("Estado");
   const idxFecha = header.indexOf("Fecha");
 
+  const idxOrigen = header.indexOf("Origen");
+
   const rango = diasAtras(dias);
   const rangoSet = new Set(rango);
-  const porDia = new Map<string, PedidosEstadoDia>(
-    rango.map((dia) => [dia, { dia, confirmados: 0, reprogramados: 0, cancelados: 0, sin_accion: 0 }])
-  );
-  const totales = { confirmados: 0, reprogramados: 0, cancelados: 0, sin_accion: 0 };
+  const vacio = () => ({ confirmados: 0, reprogramados: 0, cancelados: 0, sin_accion: 0, canal_web: 0, canal_whatsapp: 0, canal_automatico: 0 });
+  const porDia = new Map<string, PedidosEstadoDia>(rango.map((dia) => [dia, { dia, ...vacio() }]));
+  const totales = vacio();
+
+  // "Origen" distingue el canal de la acción real: "web" (botón de la página
+  // post-checkout), "whatsapp" (respuesta a la encuesta de WhatsApp) o
+  // "automatico" (el sistema canceló solo por timeout, nadie tocó nada).
+  const canalDe = (origenRaw: string): "canal_web" | "canal_whatsapp" | "canal_automatico" =>
+    origenRaw === "whatsapp" ? "canal_whatsapp" : origenRaw === "automatico" ? "canal_automatico" : "canal_web";
 
   for (const row of rows.slice(1)) {
     const estadoRaw = (row[idxEstado] ?? "").trim();
     const fechaRaw = idxFecha >= 0 ? (row[idxFecha] ?? "").trim() : "";
+    const origenRaw = idxOrigen >= 0 ? (row[idxOrigen] ?? "").trim().toLowerCase() : "";
     const filaDia = diaDe(fechaRaw);
 
-    // El workflow de cancelación ("Cancelar no manda nada") nunca escribe
-    // `Fecha` — no hay forma de ubicarlo en el rango, así que queda afuera
-    // del gráfico diario y de los totales (no hay día al que asignarlo).
-    if (estadoRaw === "Cancelado") continue;
+    // Filas viejas sin `Fecha` (el workflow de cancelación no la escribía
+    // antes del 2026-08-31) no se pueden ubicar en ningún día del rango.
     if (!filaDia || !rangoSet.has(filaDia)) continue;
 
-    const campo: keyof typeof totales = estadoRaw === "Confirmado" ? "confirmados"
-      : estadoRaw === "Reprogramado" ? "reprogramados"
-      : "sin_accion";
+    const bucket = porDia.get(filaDia)!;
 
-    totales[campo]++;
-    porDia.get(filaDia)![campo]++;
+    if (estadoRaw === "Confirmado" || estadoRaw === "Reprogramado" || estadoRaw === "Cancelado") {
+      const campo = estadoRaw === "Confirmado" ? "confirmados" : estadoRaw === "Reprogramado" ? "reprogramados" : "cancelados";
+      totales[campo]++; bucket[campo]++;
+      const canal = canalDe(origenRaw);
+      totales[canal]++; bucket[canal]++;
+    } else {
+      totales.sin_accion++; bucket.sin_accion++;
+    }
   }
 
   const diasOrdenados = [...porDia.values()].sort((a, b) => a.dia.localeCompare(b.dia));

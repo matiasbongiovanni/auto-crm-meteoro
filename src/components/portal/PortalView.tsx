@@ -5,7 +5,6 @@ import { PortalTimeline } from "./PortalTimeline";
 import { PortalMetricas } from "./PortalMetricas";
 import { PortalMetricasPedidos } from "./PortalMetricasPedidos";
 import { PortalPdfButton } from "./PortalPdfButton";
-import { plantillasCampanaFor } from "@/lib/ecommerce-metrics/plantillas-campana";
 import type { PortalProject, PortalTask, PortalUser, EcommerceMetricas, PedidosEstadoMetricas, PortalBilling } from "@/types/portal";
 
 function SectionLabel({ children, count }: { children: React.ReactNode; count?: number }) {
@@ -148,7 +147,7 @@ export function PortalView({ project, portalUser, metricas, pedidosMetricas, bil
         </div>
 
         {/* Dashboard operativo (ecommerce/servicio en marcha): métricas primero, es lo que el cliente vino a ver */}
-        {metricas && <PortalMetricas metricas={metricas} plantillasCampana={plantillasCampanaFor(project.metricas_source)} />}
+        {metricas && <PortalMetricas metricas={metricas} />}
         {pedidosMetricas && <PortalMetricasPedidos metricas={pedidosMetricas} />}
 
         {/* Progreso + Tareas — en dashboards operativos queda más chico y abajo (contexto del proyecto, no el foco) */}
