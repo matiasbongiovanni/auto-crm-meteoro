@@ -147,7 +147,7 @@ export function PortalView({ project, portalUser, metricas, pedidosMetricas, bil
         </div>
 
         {/* Dashboard operativo (ecommerce/servicio en marcha): métricas primero, es lo que el cliente vino a ver */}
-        {metricas && <PortalMetricas metricas={metricas} />}
+        {metricas && <PortalMetricas metricas={metricas} metricasSource={project.metricas_source} />}
         {pedidosMetricas && <PortalMetricasPedidos metricas={pedidosMetricas} />}
 
         {/* Progreso + Tareas — en dashboards operativos queda más chico y abajo (contexto del proyecto, no el foco) */}

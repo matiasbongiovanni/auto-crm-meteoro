@@ -1,4 +1,5 @@
-import type { EcommerceMetricas } from "@/types/portal";
+import type { EcommerceMetricas, MetricasSource } from "@/types/portal";
+import { plantillasCampanaFor } from "@/lib/ecommerce-metrics/plantillas-campana";
 import { PortalMetricasDiarias } from "./PortalMetricasDiarias";
 
 const CARD = "rounded-2xl bg-white/[0.02] border border-white/8 shadow-[0_1px_0_rgba(255,255,255,0.05)_inset,0_20px_50px_-24px_rgba(0,0,0,0.65)]";
@@ -15,9 +16,9 @@ function sum<T>(arr: T[], pick: (x: T) => number) {
   return arr.reduce((acc, x) => acc + pick(x), 0);
 }
 
-type Props = { metricas: EcommerceMetricas; moneda?: string };
+type Props = { metricas: EcommerceMetricas; moneda?: string; metricasSource?: MetricasSource | null };
 
-export function PortalMetricas({ metricas, moneda = "ARS" }: Props) {
+export function PortalMetricas({ metricas, moneda = "ARS", metricasSource }: Props) {
   const { carritos, envios, mensajes } = metricas;
 
   const totalCarritos = sum(carritos, (c) => c.carritos);
@@ -27,11 +28,24 @@ export function PortalMetricas({ metricas, moneda = "ARS" }: Props) {
   // El set de plantillas acá tiene que ser EXACTO al que usa recuperado_por_campana
   // en v_metricas_carritos (ver salidas/workflows/<cliente>/*.sql) — si no, numerador
   // y denominador miden poblaciones distintas y la tasa queda mentirosa.
-  // Tasa de recuperación = recuperados por WhatsApp / carritos abandonados (no
-  // / mensajes enviados — un carrito recibe hasta 2 toques, así que esa base
-  // infla el denominador y muestra una tasa mucho más baja de la real).
+  const plantillasCampana = plantillasCampanaFor(metricasSource);
+  const mensajesCarritoEnviados = sum(
+    mensajes.filter((m) => plantillasCampana.includes(m.plantilla_key)),
+    (m) => m.enviados
+  );
+  // UroBalance: recuperados por WhatsApp / carritos abandonados (pedido de
+  // Mati 2026-09-01, el volumen bajo de esta cuenta hace que dividir por
+  // mensajes-enviados dé un número que no matchea con lo que el cliente ve).
+  // Drenova y el resto: recuperados / mensajes de recuperación enviados
+  // (fórmula original, no tocar sin pedido explícito).
   const tasaConversion =
-    totalCarritos > 0 ? Math.round((totalRecuperadosCampana / totalCarritos) * 1000) / 10 : 0;
+    metricasSource === "urobalance_carritos"
+      ? totalCarritos > 0
+        ? Math.round((totalRecuperadosCampana / totalCarritos) * 1000) / 10
+        : 0
+      : mensajesCarritoEnviados > 0
+        ? Math.round((totalRecuperadosCampana / mensajesCarritoEnviados) * 1000) / 10
+        : 0;
   const ventasRecuperadas = sum(carritos, (c) => c.monto_recuperado_campana);
   const montoAbandonado = sum(carritos, (c) => c.monto_abandonado);
   const totalEnviados = sum(mensajes, (m) => m.enviados);
@@ -81,7 +95,11 @@ export function PortalMetricas({ metricas, moneda = "ARS" }: Props) {
             <p className="text-4xl md:text-5xl font-bold text-emerald-400/90 tabular-nums tracking-tight">
               {tasaConversion}%
             </p>
-            <p className="text-xs text-white/35 mt-2">tasa de recuperación (recuperados por WhatsApp / carritos abandonados)</p>
+            <p className="text-xs text-white/35 mt-2">
+              {metricasSource === "urobalance_carritos"
+                ? "tasa de recuperación (recuperados por WhatsApp / carritos abandonados)"
+                : "tasa de conversión (recuperados / mensajes de recuperación enviados)"}
+            </p>
           </div>
         </div>
 
@@ -116,7 +134,9 @@ export function PortalMetricas({ metricas, moneda = "ARS" }: Props) {
             <p className="text-2xl font-bold text-white tabular-nums">{totalRecuperadosCampana}</p>
           </div>
           <div>
-            <p className="text-[9px] uppercase tracking-[0.18em] text-white/25 mb-1">Tasa de recuperación</p>
+            <p className="text-[9px] uppercase tracking-[0.18em] text-white/25 mb-1">
+              {metricasSource === "urobalance_carritos" ? "Tasa de recuperación" : "Tasa de conversión"}
+            </p>
             <p className="text-2xl font-bold text-white tabular-nums">{tasaConversion}%</p>
           </div>
           <div>
